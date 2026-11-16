@@ -1,16 +1,27 @@
 {
   "id": "accio-bridge",
   "name": "Accio Bridge",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "author": "xenstar",
   "homepage": "https://github.com/xenstar",
-  "description": "Use Codex++ models with the stock Accio app while keeping your Accio account, history, and features.",
+  "description": "Accio Bridge / Accio 桥接: use Codex++ models in stock Accio Work for chat, agents and image generation while keeping your account, history, skills and UI.",
   "keywords": [
     "accio",
-    "bridge",
-    "agent",
+    "accio work",
+    "accio ai",
+    "accio desktop",
+    "accio bridge",
+    "codexpp",
+    "agent bridge",
+    "image generation",
+    "accio 桥接",
+    "accio 中文",
+    "accio 桌面版",
+    "accio 助手",
+    "accio 智能体",
+    "阿西欧",
     "桥接",
-    "模型"
+    "生图"
   ],
   "engines": {
     "codexpp": 1

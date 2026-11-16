@@ -17,12 +17,27 @@ const english = JSON.parse(fs.readFileSync(path.join(root, "locale", "en.json"),
 const chinese = JSON.parse(fs.readFileSync(path.join(root, "locale", "zh.json"), "utf8"));
 const managerSource = fs.readFileSync(path.join(root, "manager.html"), "utf8");
 
-assert.equal(manifest.version, "0.1.21");
+assert.equal(manifest.version, "0.1.22");
 assert.equal(manifest.manager.page, "manager.html");
 assert.equal(manifest.manager.nav, undefined, "plugin must not add a Tools navigation tab");
 assert.equal(manifest.inject, undefined, "plugin must not ship DOM injection");
 assert.equal(english.meta.title, "Accio Bridge");
-assert.equal(chinese.meta.title, "Accio 桥接");
+assert.match(chinese.meta.title, /Accio 桥接/);
+for (const keyword of [
+  "accio",
+  "accio work",
+  "accio bridge",
+  "accio 桥接",
+  "accio 中文",
+  "accio 桌面版",
+  "accio 智能体",
+  "阿西欧",
+  "生图",
+]) {
+  assert.ok(manifest.keywords.includes(keyword), `community search keyword is missing: ${keyword}`);
+}
+assert.ok(fs.existsSync(path.join(root, "README.md")), "English README must ship");
+assert.ok(fs.existsSync(path.join(root, "README.zh-CN.md")), "Chinese README must ship");
 assert.ok(!/id="video[A-Z]/.test(managerSource), "manager must not expose any video status or generation UI");
 assert.ok(!/state\.video\b/.test(managerSource), "manager must not read video state");
 const managerScript = managerSource.match(/<script>([\s\S]*?)<\/script>/)?.[1];
