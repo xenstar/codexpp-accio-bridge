@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accio Bridge</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #5d6875;
+      --line: #d9dee5;
+      --accent: #0c6b58;
+      --accent-hover: #095746;
+      --warn: #9a5b00;
+      --bad: #aa2f2f;
+      --ok: #176b43;
+      --button: #e8edf1;
+    }
+    html[data-theme="dark"] {
+      --bg: #101519;
+      --panel: #171d22;
+      --text: #edf2f5;
+      --muted: #a7b1ba;
+      --line: #303941;
+      --accent: #55b99d;
+      --accent-hover: #72c9b1;
+      --warn: #e4a84c;
+      --bad: #ef7d7d;
+      --ok: #69c795;
+      --button: #252d34;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(760px, 100%);
+      padding: 18px;
+    }
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+    p { margin: 0; color: var(--muted); }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 26px;
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      white-space: nowrap;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .dot.ok { background: var(--ok); }
+    .dot.warn { background: var(--warn); }
+    .dot.bad { background: var(--bad); }
+    .surface {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    button {
+      min-height: 34px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--button);
+      color: var(--text);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(0.97); }
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    button.primary:hover { background: var(--accent-hover); }
+    button:disabled {
+      cursor: wait;
+      opacity: 0.55;
+    }
+    dl {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      margin: 0;
+    }
+    dt, dd {
+      margin: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      min-width: 0;
+    }
+    dt { color: var(--muted); }
+    dd {
+      overflow-wrap: anywhere;
+      font-variant-numeric: tabular-nums;
+    }
+    dl > :nth-last-child(-n+2) { border-bottom: 0; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+    }
+    .message {
+      min-height: 38px;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+      color: var(--muted);
+    }
+    .message.error {
+      border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
+      color: var(--bad);
+    }
+    @media (max-width: 560px) {
+      main { padding: 12px; }
+      header { flex-direction: column; gap: 8px; }
+      dl { grid-template-columns: 1fr; }
+      dt { padding-bottom: 2px; border-bottom: 0; }
+      dd { padding-top: 2px; }
+      dl > :nth-last-child(-n+2) { border-bottom: 1px solid var(--line); }
+      dl > :last-child { border-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1 id="title">Accio Bridge</h1>
+        <p id="subtitle">Use Codex++ models through Accio's normal account and interface.</p>
+      </div>
+      <div class="status"><span id="dot" class="dot"></span><span id="label">Checking</span></div>
+    </header>
+
+    <section class="surface">
+      <div class="actions">
+        <button id="open" class="primary" type="button"></button>
+        <button id="restart" type="button"></button>
+        <button id="refresh" type="button"></button>
+        <button id="stop" type="button"></button>
+      </div>
+      <dl>
+        <dt id="proxyLabel"></dt><dd id="proxy">Checking</dd>
+        <dt id="modelsLabel"></dt><dd id="models">-</dd>
+        <dt id="portsLabel"></dt><dd id="ports">-</dd>
+        <dt id="accioLabel"></dt><dd id="accio">-</dd>
+        <dt id="pathLabel"></dt><dd id="path">-</dd>
+      </dl>
+    </section>
+
+    <section class="surface">
+      <dl>
+        <dt id="imageRouteLabel"></dt><dd id="imageRoute">-</dd>
+        <dt id="imageModelsLabel"></dt><dd id="imageModels">-</dd>
+        <dt id="imageDefaultLabel"></dt><dd id="imageDefault">-</dd>
+      </dl>
+    </section>
+
+    <div id="message" class="message" role="status">Reading current state.</div>
+  </main>
+
+  <script>
+    const api = window.codexPlusManager;
+    const el = (id) => document.getElementById(id);
+    const language = String((navigator.languages && navigator.languages[0]) || navigator.language || "en")
+      .toLowerCase()
+      .startsWith("zh") ? "zh" : "en";
+    const copy = {
+      en: {
+        title: "Accio Bridge",
+        subtitle: "Use Codex++ models through Accio's normal account and interface.",
+        open: "Open routed Accio",
+        restart: "Restart routed",
+        refresh: "Refresh",
+        stop: "Stop bridge",
+        proxyLabel: "Codex++ proxy",
+        modelsLabel: "Models available",
+        portsLabel: "Local ports",
+        accioLabel: "Accio process",
+        pathLabel: "Accio executable",
+        checking: "Checking",
+        reading: "Reading current state.",
+        routed: "Routed",
+        unavailable: "Codex++ unavailable",
+        restartNeeded: "Restart needed",
+        starting: "Starting",
+        ready: "Ready",
+        backendError: "Backend error",
+        refreshed: "State refreshed.",
+        actionCompleted: "Action completed.",
+        opening: "Starting Accio with Codex++ models.",
+        started: "Accio is starting with Codex++ routing.",
+        restarting: "Restarting Accio through Codex++.",
+        stopping: "Stopping the bridge.",
+        notDetected: "Not detected",
+        notRunning: "Not running",
+        unmanaged: "Unmanaged",
+        routedProcess: "Routed",
+        actionFailed: "Action did not start Accio.",
+        accioMissing: "Accio was not found. Install the latest Accio app, then click Refresh. For a non-standard install, set the executable path in the extension settings.",
+        imageRouteLabel: "Image route",
+        imageModelsLabel: "Image models",
+        imageDefaultLabel: "Default image model",
+        imageIdle: "Bridge not running",
+        imageGateway: "Codex++ gateway (/gw/accio)",
+        imageHelper: "Codex++ helper (auto)",
+        imageCli: "Codex subscription bridge",
+        imageOff: "Disabled",
+        imageNone: "None found",
+        imageAuto: "Codex++ chooses"
+      },
+      zh: {
+        title: "Accio 桥接",
+        subtitle: "通过 Accio 原有账号和界面使用 Codex++ 模型。",
+        open: "打开桥接 Accio",
+        restart: "重启桥接进程",
+        refresh: "刷新",
+        stop: "停止桥接",
+        proxyLabel: "Codex++ 协议代理",
+        modelsLabel: "可用模型",
+        portsLabel: "本地端口",
+        accioLabel: "Accio 进程",
+        pathLabel: "Accio 可执行文件",
+        checking: "检查中",
+        reading: "正在读取当前状态。",
+        routed: "已桥接",
+        unavailable: "Codex++ 不可用",
+        restartNeeded: "需要重启",
+        starting: "正在启动",
+        ready: "就绪",
+        backendError: "后台错误",
+        refreshed: "状态已刷新。",
+        actionCompleted: "操作已完成。",
+        opening: "正在使用 Codex++ 模型启动 Accio。",
+        started: "Accio 正在使用 Codex++ 路由启动。",
+        restarting: "正在通过 Codex++ 重启 Accio。",
+        stopping: "正在停止桥接。",
+        notDetected: "未检测到",
+        notRunning: "未运行",
+        unmanaged: "未桥接",
+        routedProcess: "已桥接",
+        actionFailed: "操作未能启动 Accio。",
+        accioMissing: "未找到 Accio。请安装最新版 Accio 后点击刷新；如果安装在非默认位置，请在扩展设置中填写可执行文件路径。",
+        imageRouteLabel: "生图通道",
+        imageModelsLabel: "生图模型",
+        imageDefaultLabel: "默认生图模型",
+        imageIdle: "桥接未运行",
+        imageGateway: "Codex++ 网关（/gw/accio）",
+        imageHelper: "Codex++ 本地代理（自动）",
+        imageCli: "Codex 订阅桥接",
+        imageOff: "已关闭",
+        imageNone: "未发现",
+        imageAuto: "由 Codex++ 选择"
+      }
+    }[language];
+    let current = null;
+    let busy = false;
+
+    function applyLanguage() {
+      document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+      document.title = copy.title;
+      el("title").textContent = copy.title;
+      el("subtitle").textContent = copy.subtitle;
+      el("open").textContent = copy.open;
+      el("restart").textContent = copy.restart;
+      el("refresh").textContent = copy.refresh;
+      el("stop").textContent = copy.stop;
+      el("proxyLabel").textContent = copy.proxyLabel;
+      el("modelsLabel").textContent = copy.modelsLabel;
+      el("portsLabel").textContent = copy.portsLabel;
+      el("accioLabel").textContent = copy.accioLabel;
+      el("pathLabel").textContent = copy.pathLabel;
+      el("imageRouteLabel").textContent = copy.imageRouteLabel;
+      el("imageModelsLabel").textContent = copy.imageModelsLabel;
+      el("imageDefaultLabel").textContent = copy.imageDefaultLabel;
+      el("label").textContent = copy.checking;
+      el("message").textContent = copy.reading;
+    }
+
+    function syncButtons() {
+      const accioAvailable = Boolean(current?.accio?.exists);
+      el("open").disabled = busy || !accioAvailable;
+      el("restart").disabled = busy || !accioAvailable;
+      el("refresh").disabled = busy;
+      el("stop").disabled = busy;
+    }
+
+    function setBusy(value) {
+      busy = value;
+      syncButtons();
+    }
+
+    function say(message, error = false) {
+      el("message").textContent = message;
+      el("message").classList.toggle("error", error);
+    }
+
+    function stateTone(state) {
+      if (state?.ready) return ["ok", copy.routed];
+      if (!state?.accio?.exists) return ["bad", copy.notDetected];
+      if (!state?.proxy?.ok) return ["bad", copy.unavailable];
+      if (state?.accio?.running && !state?.accio?.managed) return ["warn", copy.restartNeeded];
+      if (state?.accio?.managed) return ["ok", copy.starting];
+      return ["warn", copy.ready];
+    }
+
+    function render(state) {
+      current = state;
+      const [tone, label] = stateTone(state);
+      el("dot").className = `dot ${tone}`;
+      el("label").textContent = label;
+      el("proxy").innerHTML = state.proxy?.ok
+        ? `<code>${escapeHtml(state.proxy.baseUrl)}</code>`
+        : escapeHtml(state.proxy?.error || copy.notDetected);
+      el("models").textContent = state.proxy?.ok ? String(state.proxy.modelCount) : "0";
+      el("ports").textContent = [
+        `43100 ${state.services.relay ? "up" : "down"}`,
+        `43101 ${state.services.bridge ? "up" : "down"}`,
+        `43102 ${state.services.imageBridge ? "up" : "down"}`
+      ].join(" · ");
+      el("accio").textContent = state.accio.running
+        ? `${state.accio.managed ? copy.routedProcess : copy.unmanaged} · PID ${state.accio.processes.map((item) => item.pid).join(", ")}`
+        : state.accio.exists ? copy.notRunning : copy.notDetected;
+      el("path").innerHTML = `<code>${escapeHtml(state.accio.path)}</code>`;
+      const image = state.image;
+      el("imageRoute").textContent = !image
+        ? copy.imageIdle
+        : image.route === "off"
+          ? copy.imageOff
+          : image.pinned
+            ? copy.imageGateway
+            : image.route === "codex-cli"
+              ? copy.imageCli
+              : copy.imageHelper;
+      el("imageModels").textContent = image?.models?.length
+        ? image.models.map((item) => item.model).join(", ")
+        : copy.imageNone;
+      el("imageDefault").textContent = image?.defaultModel && image.defaultModel !== "auto"
+        ? image.defaultModel
+        : copy.imageAuto;
+      if (!state.accio.exists) say(copy.accioMissing);
+      syncButtons();
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[character]);
+    }
+
+    async function refresh(showMessage = false) {
+      if (busy) return;
+      try {
+        const state = await api.backend.call("status");
+        state.ready = Boolean(
+          state.proxy?.ok &&
+          state.services?.relay &&
+          state.services?.bridge &&
+          state.accio?.running &&
+          state.accio?.managed
+        );
+        render(state);
+        if (showMessage) say(copy.refreshed);
+      } catch (error) {
+        el("dot").className = "dot bad";
+        el("label").textContent = copy.backendError;
+        say(String(error), true);
+      }
+    }
+
+    async function run(method, label) {
+      if (busy) return;
+      setBusy(true);
+      say(label);
+      try {
+        const result = await api.backend.call(method);
+        if (result?.ok === false) {
+          say(result.message || result.code || copy.actionFailed, true);
+        } else {
+          say(method === "openAccio" && result?.code === "STARTED"
+            ? copy.started
+            : copy.actionCompleted);
+        }
+      } catch (error) {
+        say(String(error), true);
+      } finally {
+        setBusy(false);
+        await refresh(false);
+      }
+    }
+
+    applyLanguage();
+    el("open").onclick = () => run("openAccio", copy.opening);
+    el("restart").onclick = () => run("restartAccio", copy.restarting);
+    el("stop").onclick = () => run("stop", copy.stopping);
+    el("refresh").onclick = () => refresh(true);
+
+    api.onTheme((theme) => {
+      document.documentElement.dataset.theme = theme;
+    });
+    refresh(false);
+    setInterval(() => refresh(false), 5000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+{
+  "id": "accio-bridge",
+  "name": "Accio Bridge",
+  "version": "0.1.21",
+  "author": "xenstar",
+  "homepage": "https://github.com/xenstar",
+  "description": "Use Codex++ models with the stock Accio app while keeping your Accio account, history, and features.",
+  "keywords": [
+    "accio",
+    "bridge",
+    "agent",
+    "桥接",
+    "模型"
+  ],
+  "engines": {
+    "codexpp": 1
+  },
+  "backend": {
+    "script": "backend/main.mjs",
+    "provides": [
+      "accio-bridge"
+    ]
+  },
+  "agentAccess": [
+    {
+      "id": "accio",
+      "name": {
+        "en": "Accio",
+        "zh": "Accio"
+      },
+      "wire": "chat",
+      "hint": {
+        "en": "Start Accio from Codex++ so its existing account and features use Codex++ models.",
+        "zh": "从 Codex++ 启动 Accio，保留现有账号和功能并使用 Codex++ 模型。"
+      },
+      "service": "accio-bridge",
+      "methods": {
+        "status": "agentStatus",
+        "launch": "openAccio",
+        "restart": "restartAccio",
+        "stop": "stop"
+      }
+    }
+  ],
+  "manager": {
+    "page": "manager.html",
+    "title": "Accio Bridge / Accio 桥接"
+  },
+  "config": {
+    "accioPath": {
+      "type": "string",
+      "title": {
+        "en": "Accio executable",
+        "zh": "Accio 可执行文件"
+      },
+      "description": {
+        "en": "Optional absolute path. Leave empty to use the standard per-user install.",
+        "zh": "可选绝对路径。留空时使用当前用户的默认安装位置。"
+      },
+      "default": ""
+    },
+    "imageRoute": {
+      "type": "select",
+      "title": {
+        "en": "Image route",
+        "zh": "生图通道"
+      },
+      "description": {
+        "en": "auto tries the Codex++ image gateway first and falls back to the Codex subscription bridge. codexplus keeps the Codex++ gateway only.",
+        "zh": "auto 优先走 Codex++ 生图网关，失败时回退到 Codex 订阅桥接；codexplus 只走 Codex++ 网关。"
+      },
+      "options": [
+        {
+          "value": "auto",
+          "label": {
+            "en": "Codex++ first, then Codex",
+            "zh": "优先 Codex++，回退 Codex"
+          }
+        },
+        {
+          "value": "codexplus",
+          "label": {
+            "en": "Codex++ image gateway only",
+            "zh": "仅用 Codex++ 生图网关"
+          }
+        },
+        {
+          "value": "codex-cli",
+          "label": {
+            "en": "Codex subscription bridge only",
+            "zh": "仅用 Codex 订阅桥接"
+          }
+        },
+        {
+          "value": "off",
+          "label": {
+            "en": "Image generation disabled",
+            "zh": "关闭生图"
+          }
+        }
+      ],
+      "default": "auto"
+    },
+    "imageCatalog": {
+      "type": "select",
+      "title": {
+        "en": "Image model list in Accio",
+        "zh": "Accio 内的生图模型列表"
+      },
+      "description": {
+        "en": "group shows a separate Codex++ Image section so you can pick GPT Image or a Qwen/Wan image model. hidden keeps them routable but out of the picker.",
+        "zh": "group 会单独显示「Codex++ 生图」分组，可选择 GPT Image 或 Qwen/Wan 生图模型；hidden 保留可路由但不显示在选择列表。"
+      },
+      "options": [
+        {
+          "value": "group",
+          "label": {
+            "en": "Separate image section",
+            "zh": "独立生图分组"
+          }
+        },
+        {
+          "value": "hidden",
+          "label": {
+            "en": "Routable but hidden from picker",
+            "zh": "可路由但不在列表显示"
+          }
+        },
+        {
+          "value": "off",
+          "label": {
+            "en": "Do not publish image models",
+            "zh": "不发布生图模型"
+          }
+        }
+      ],
+      "default": "group"
+    },
+    "imageModel": {
+      "type": "string",
+      "title": {
+        "en": "Default image model",
+        "zh": "默认生图模型"
+      },
+      "description": {
+        "en": "Used when Accio asks for an image without a model of its own, for example qwentokenplan/wan2.7-image-pro. auto lets Codex++ choose.",
+        "zh": "当 Accio 发起生图但未指定模型时使用，例如 qwentokenplan/wan2.7-image-pro；auto 表示交给 Codex++ 自行选择。"
+      },
+      "default": "auto"
+    }
+  },
+  "repository": "xenstar/codexpp-accio-bridge"
+}
