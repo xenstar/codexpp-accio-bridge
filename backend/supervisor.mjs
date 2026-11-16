@@ -80,7 +80,7 @@ function serviceEnvironment(config) {
     CODEXPLUS_DISCOVERY_ONLY_EXPLICIT: "1",
     ACCIO_PROVIDER_SOURCES: "codexplus",
     ACCIO_APP_VERSION: config.accioVersion || "",
-    ACCIO_BRIDGE_VERSION: "0.1.22",
+    ACCIO_BRIDGE_VERSION: "0.1.23",
     ACCIO_IMAGE_BRIDGE_URL: "http://127.0.0.1:43102",
     // Codex++ owns image generation, so its image gateway is tried first and the Codex CLI
     // bridge on 43102 stays as the fallback. "auto" picks /gw/accio/ when Codex++ registers

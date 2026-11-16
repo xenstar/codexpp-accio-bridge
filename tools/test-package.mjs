@@ -17,7 +17,7 @@ const english = JSON.parse(fs.readFileSync(path.join(root, "locale", "en.json"),
 const chinese = JSON.parse(fs.readFileSync(path.join(root, "locale", "zh.json"), "utf8"));
 const managerSource = fs.readFileSync(path.join(root, "manager.html"), "utf8");
 
-assert.equal(manifest.version, "0.1.22");
+assert.equal(manifest.version, "0.1.23");
 assert.equal(manifest.manager.page, "manager.html");
 assert.equal(manifest.manager.nav, undefined, "plugin must not add a Tools navigation tab");
 assert.equal(manifest.inject, undefined, "plugin must not ship DOM injection");

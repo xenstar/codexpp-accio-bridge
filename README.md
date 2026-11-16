@@ -52,11 +52,9 @@ The Codex++ Community listing includes both English and Chinese search terms:
 - Text and image generation: supported
 - Video generation: not included
 
-## Documentation
+## Links
 
 - [Chinese guide](README.zh-CN.md)
-- [Maintainer handoff](docs/MAINTAINER_HANDOFF.md)
-- [Agent Access handoff](docs/ACCIO-AGENT-ACCESS-HANDOFF.md)
-- [Accio integration issue](https://github.com/BigPizzaV3/CodexPlusPlus/issues/3109)
+- [Codex++ integration request](https://github.com/BigPizzaV3/CodexPlusPlus/issues/3109)
 
 Publisher: [xenstar](https://github.com/xenstar)

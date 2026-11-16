@@ -1,7 +1,7 @@
 {
   "id": "accio-bridge",
   "name": "Accio Bridge",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "author": "xenstar",
   "homepage": "https://github.com/xenstar",
   "description": "Accio Bridge / Accio 桥接: use Codex++ models in stock Accio Work for chat, agents and image generation while keeping your account, history, skills and UI.",

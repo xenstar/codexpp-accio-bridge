@@ -48,11 +48,9 @@ Codex++ 社区搜索同时支持英文和中文关键词：
 - 文本与生图：支持
 - 视频生成：暂不支持
 
-## 文档
+## 链接
 
 - [English guide](README.md)
-- [维护者交接说明](docs/MAINTAINER_HANDOFF.md)
-- [Agent Access 交接说明](docs/ACCIO-AGENT-ACCESS-HANDOFF.md)
-- [Accio 集成 Issue](https://github.com/BigPizzaV3/CodexPlusPlus/issues/3109)
+- [Codex++ 接入需求 Issue](https://github.com/BigPizzaV3/CodexPlusPlus/issues/3109)
 
 发布者：[xenstar](https://github.com/xenstar)
