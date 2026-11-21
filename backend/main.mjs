@@ -5,6 +5,10 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { discoverAccioExecutable, discoverAccioVersion } from "./accio-location.mjs";
+import {
+  removeLegacyMcpFromCodexPlusSettings,
+  removeLegacyMcpRegistration,
+} from "./legacy-mcp.mjs";
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -219,6 +223,29 @@ function supervisorState() {
   return Boolean(supervisor?.connected && supervisor.exitCode == null);
 }
 
+function cleanupLegacyMcpRegistrations(log) {
+  const config = removeLegacyMcpRegistration();
+  const settings = removeLegacyMcpFromCodexPlusSettings();
+  if (config.changed || settings.changed) {
+    log?.("removed obsolete Accio MCP registration", { config, settings });
+  } else {
+    for (const result of [config, settings]) {
+      if (![
+        "entry-absent",
+        "config-missing",
+        "development-server-enabled",
+      ].includes(result.reason)) {
+        log?.("preserved MCP registration", result);
+      }
+    }
+  }
+  return {
+    changed: config.changed || settings.changed,
+    config,
+    settings,
+  };
+}
+
 async function relayImageStatus() {
   if (!(await portHealthy(43100))) return null;
   try {
@@ -266,7 +293,37 @@ async function collectStatus(config, log) {
   };
 }
 
+async function collectAgentStatus(config, log) {
+  const accioProcesses = await listAccioProcesses();
+  let managed = null;
+  if (supervisorState()) {
+    try {
+      managed = await supervisorRequest("status", {}, 5000, log);
+    } catch {}
+  }
+
+  const accioLocationResult = await accioLocation(config);
+  return {
+    accio: {
+      path: accioLocationResult.path,
+      source: accioLocationResult.source,
+      exists: accioLocationResult.exists,
+      version: accioLocationResult.version || "",
+      running: accioProcesses.length > 0,
+      processes: accioProcesses,
+      managed: Boolean(managed?.accioPid),
+    },
+    managed,
+  };
+}
+
 async function openAccio(config, emit, log, options = {}) {
+  try {
+    cleanupLegacyMcpRegistrations(log);
+  } catch (error) {
+    log?.("legacy MCP cleanup failed", asError(error));
+  }
+
   const accioLocationResult = await accioLocation(config, true);
   if (!accioLocationResult.exists) {
     throw new Error(
@@ -319,6 +376,9 @@ async function openAccio(config, emit, log, options = {}) {
       imageRoute: config.imageRoute || "auto",
       imageCatalog: config.imageCatalog || "group",
       imageModel: config.imageModel || "auto",
+      harnessPrompts: config.harnessPrompts || "auto",
+      harnessToolNames: config.harnessToolNames || "auto",
+      harnessShellBlock: config.harnessShellBlock || "auto",
     },
     30000,
     log,
@@ -336,7 +396,9 @@ export default function create({ config: initialConfig = {}, emit, log }) {
     },
 
     async agentStatus() {
-      const status = await collectStatus(config, log);
+      // Background discovery must stay inert while Accio is closed. The
+      // manager's explicit status view may still probe Codex++.
+      const status = await collectAgentStatus(config, log);
       return {
         installed: Boolean(status.accio?.exists),
         running: Boolean(status.accio?.running),
@@ -373,6 +435,10 @@ export default function create({ config: initialConfig = {}, emit, log }) {
     async refreshConfig(next = {}) {
       config = { ...config, ...(next || {}) };
       return collectStatus(config, log);
+    },
+
+    async cleanupLegacyMcp() {
+      return cleanupLegacyMcpRegistrations(log);
     },
   };
 }

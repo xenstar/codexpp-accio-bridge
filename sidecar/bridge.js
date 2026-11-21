@@ -14,6 +14,7 @@ const {
   parseToolArguments,
   preferCompleteArguments,
 } = require(path.join(__dirname, "tool-stream.js"));
+const { normalizeHarnessMcpTransport } = require(path.join(__dirname, "harness-routing.js"));
 
 const HOST = process.env.BRIDGE_HOST || "127.0.0.1";
 const PORT = Number(process.env.BRIDGE_PORT || 43101);
@@ -28,6 +29,39 @@ const TOOL_TIMEOUT_SECONDS = Number.isFinite(configuredToolTimeout) && configure
   : 60;
 const SHELL_TOOL_NAMES = new Set(["bash", "process"]);
 const TIMEOUT_TOOL_NAMES = SHELL_TOOL_NAMES;
+const MCP_CALL_TOOL_NAMES = new Set(["accio_host_mcp_call", "mcp_call"]);
+const HARNESS_SUPPLIER_TOOL_NAMES = new Set([
+  "search_message_targets",
+  "list_channel_conversations",
+  "read_channel_history",
+  "send_message",
+  "listen_seller_agent",
+  "unlisten_seller_agent",
+  "inquiry_data_batch_query",
+  "inquiry_data_query",
+  "inquiry_data_load",
+  "retrieve_im_history",
+  "query_recent_conversation",
+  "query_recent_conversation_for_aimode",
+  "query_conversation_msg",
+  "query_conversation_msg_for_aimode",
+  "query_conversation_msg_batch",
+  "query_conversation_msg_timeRange",
+  "query_conversation_msg_timeRange_for_aimode",
+  "query_active_conversation_msg",
+  "start_alibaba_com_auth",
+  "set_auto_chat",
+  "get_task_progress_summary",
+  "list_inquiry_tasks",
+  "retrieve_reception_state",
+  "sendInstructToSellerAgent",
+  "send_msg",
+  "ai_receptionist",
+]);
+const HARNESS_SHELL_TOOL_NAMES = new Set(["bash", "process"]);
+const HARNESS_PLATFORM_PATTERN = /1688|supplier|seller|vendor|inquiry|供应商|卖家|询盘|客服/i;
+const HARNESS_MESSAGING_PATTERN = /chat|message|conversation|reply|inbox|thread|消息|聊天|会话|回复|对话/i;
+const HARNESS_AUTO_CHAT_PATTERN = /auto[-\s]?chat|自动回复|自动聊天/i;
 const ARTIFACT_IMAGE_TOOL_NAMES = new Set(["image_generate", "image_edit"]);
 const ARTIFACT_PRESENT_TOOL_NAME = "present_files";
 const TIMEOUT_PARAMETER_NAMES = ["timeoutSeconds", "timeout_seconds", "timeoutMs", "timeout_ms", "timeout"];
@@ -37,6 +71,25 @@ const ARTIFACT_DELIVERY_INSTRUCTION = [
   "- Call present_files once with files:[{\"path\":\"<plain path>\"}]. Never place JSON text inside the path field.",
   "- Do not copy, move, rename, delete, recycle, or run shell commands to clean up generated artifacts. The present_files result is the delivery."
 ].join("\n");
+const HARNESS_NATIVE_ROUTING_INSTRUCTION = [
+  "Accio native harness routing:",
+  "- For supplier and inquiry work in this turn, use the supplied native Accio MCP tools directly. Accio preserves the supplier session, authorization, and server-owned operations.",
+  "- Do not use bash, process, accio-mcp-cli, phoenix-im, or inquiry-batch-fetch-msgs for supplier business work when a matching native tool is supplied.",
+  "- Read inquiry progress with get_task_progress_summary or list_inquiry_tasks when supplied.",
+  "- Resolve a conversation with query_recent_conversation_for_aimode or query_recent_conversation, then read message bodies with a supplied conversation-message query.",
+  "- Send a seller instruction with sendInstructToSellerAgent and a direct supplier message with send_msg when those are supplied.",
+  "- When an Accio skill documents `accio-mcp-cli call TOOL --json PAYLOAD`, translate it to the supplied MCP transport as {action:\"mcp\",name:\"TOOL\",arguments:PAYLOAD}; use accio_host_mcp_call when that is the supplied transport.",
+  "- Preserve documented payload wrappers and fields. Keep `request` for inquiry and conversation tools; keep query_conversation_msg_timeRange fields at the top level.",
+  "- If a native call fails or returns an auth/business error, report that result. Never infer message content from agentSummary or substitute shell automation.",
+  "- Model inference remains on the selected Codex++ provider. Accio owns native tool execution and any account-scoped server usage."
+].join("\n");
+function harnessFeatureEnabled(value) {
+  const normalized = String(value || "auto").trim().toLowerCase();
+  return !["0", "false", "off", "disabled"].includes(normalized);
+}
+const HARNESS_PROMPTS_ENABLED = harnessFeatureEnabled(process.env.ACCIO_HARNESS_PROMPTS);
+const HARNESS_TOOL_NAMES_ENABLED = harnessFeatureEnabled(process.env.ACCIO_HARNESS_TOOL_NAMES);
+const HARNESS_SHELL_BLOCK_ENABLED = harnessFeatureEnabled(process.env.ACCIO_HARNESS_SHELL_BLOCK);
 function completionsUrl(value) {
   const url = new URL(value || "https://api.openai.com");
   url.pathname = url.pathname.replace(/\/+$/, "");
@@ -302,22 +355,165 @@ function latestAssistantText(input) {
   }
   return "";
 }
-function toolsFor(p, artifactState = artifactDeliveryState(p)) {
-  let tools = (p.tools || []).flatMap(group => {
+function rawToolsFor(p) {
+  return (p.tools || []).flatMap(group => {
     if (group?.type === "function" && group.function) return [group];
     return group.functionDeclarations || group.function_declarations || group.functions || group.tools || (group.name ? [group] : []);
   }).map(f => {
     if (f.type === "function" && f.function) return { type: "function", function: { name: f.function.name, description: f.function.description, parameters: f.function.parameters || { type: "object", properties: {} }, ...(f.function.strict == null ? {} : { strict: f.function.strict }) } };
     return { type: "function", function: { name: f.name, description: f.description, parameters: f.parameters || f.inputSchema || { type: "object", properties: {} } } };
   });
+}
+function latestUserText(input) {
+  const messages = messagesFor(input);
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index].role === "user") return String(messages[index].content || "");
+  }
+  return "";
+}
+function harnessToolName(name) {
+  return HARNESS_SUPPLIER_TOOL_NAMES.has(normalizedToolName(name));
+}
+function mcpTransportTarget(argsText) {
+  const args = parseToolArguments(argsText);
+  if (!args || typeof args !== "object" || Array.isArray(args)) return "";
+  return String(args.name || args.tool_name || "").trim();
+}
+function harnessToolCall(name, argsText = "") {
+  if (harnessToolName(name)) return true;
+  return MCP_CALL_TOOL_NAMES.has(normalizedToolName(name)) && harnessToolName(mcpTransportTarget(argsText));
+}
+function hasNativeHarnessTools(p) {
+  return rawToolsFor(p).some(tool => {
+    const name = normalizedToolName(tool.function?.name);
+    return MCP_CALL_TOOL_NAMES.has(name) || harnessToolName(name);
+  });
+}
+function recentHarnessToolActivity(input) {
+  const messages = messagesFor(input).filter(message => message.role !== "system").slice(-16);
+  for (const message of messages) {
+    for (const call of message.tool_calls || []) {
+      if (harnessToolCall(call.function?.name, call.function?.arguments)) return true;
+    }
+    const parts = contentParts(message);
+    for (const part of parts) {
+      const call = part?.functionCall || part?.function_call || part?.toolCall;
+      if (call && harnessToolCall(call.name || call.function?.name, call.argsJson ?? call.args_json ?? call.args ?? call.arguments)) return true;
+      const result = directFunctionResponse(part);
+      if (result && harnessToolName(functionResponseName(result))) return true;
+    }
+  }
+  return false;
+}
+function harnessState(input) {
+  const p = envelope(input);
+  const nativeTools = hasNativeHarnessTools(p);
+  const text = latestUserText(input);
+  const taskRelated = HARNESS_AUTO_CHAT_PATTERN.test(text)
+    || (HARNESS_PLATFORM_PATTERN.test(text) && HARNESS_MESSAGING_PATTERN.test(text))
+    || recentHarnessToolActivity(input);
+  return {
+    active: nativeTools && taskRelated,
+    nativeTools,
+    taskRelated,
+    prompts: HARNESS_PROMPTS_ENABLED,
+    toolNames: HARNESS_TOOL_NAMES_ENABLED,
+    shellBlock: HARNESS_SHELL_BLOCK_ENABLED,
+  };
+}
+function harnessInstructions(state) {
+  return state?.active && state.prompts ? HARNESS_NATIVE_ROUTING_INSTRUCTION : "";
+}
+function latestHarnessConversationId(value, depth = 0) {
+  if (depth > 8 || value == null) return "";
+  if (Array.isArray(value)) {
+    for (let index = value.length - 1; index >= 0; index -= 1) {
+      const found = latestHarnessConversationId(value[index], depth + 1);
+      if (found) return found;
+    }
+    return "";
+  }
+  if (typeof value !== "object") return "";
+  for (const key of ["conversationId", "conversation_id"]) {
+    const candidate = String(value[key] || "").trim();
+    if (/^[^_\s]+_[^_\s]+_[^_\s]+$/.test(candidate)) return candidate;
+  }
+  for (const item of Object.values(value)) {
+    const found = latestHarnessConversationId(item, depth + 1);
+    if (found) return found;
+  }
+  return "";
+}
+function harnessConversationIdFromHistory(input) {
+  for (const message of messagesFor(input).filter(item => item.role === "tool").reverse()) {
+    try {
+      const found = latestHarnessConversationId(JSON.parse(String(message.content || "")));
+      if (found) return found;
+    } catch (_) {
+      // Non-JSON tool text cannot provide a trustworthy conversation identifier.
+    }
+  }
+  return "";
+}
+function harnessMcpArguments(name, argsText, input, state) {
+  if (!state?.active || !state.toolNames || !MCP_CALL_TOOL_NAMES.has(normalizedToolName(name))) {
+    return { argsText, mapped: "" };
+  }
+  let args;
+  try {
+    args = JSON.parse(String(argsText || "{}"));
+  } catch (_) {
+    return { argsText, mapped: "" };
+  }
+  if (!args || typeof args !== "object" || Array.isArray(args)) return { argsText, mapped: "" };
+  const action = String(args.action || "").trim().toLowerCase();
+  if (action === "mcp") return normalizeHarnessMcpTransport(args, argsText);
+  if (action !== "search") return { argsText, mapped: "" };
+
+  const conversationId = harnessConversationIdFromHistory(input);
+  const now = Date.now();
+  const mapped = conversationId
+    ? {
+        action: "mcp",
+        name: "query_conversation_msg_for_aimode",
+        arguments: {
+          request: {
+            conversationId,
+            domain: "icbu",
+            limitTimeStamp: now,
+            count: 50,
+            forward: false,
+          },
+        },
+      }
+    : {
+        action: "mcp",
+        name: "query_recent_conversation_for_aimode",
+        arguments: {
+          request: {
+            domain: "icbu",
+            limitTimeStamp: now,
+          },
+        },
+      };
+  return {
+    argsText: JSON.stringify(mapped),
+    mapped: mapped.name,
+  };
+}
+function toolsFor(p, artifactState = artifactDeliveryState(p), harness = harnessState(p)) {
+  let tools = rawToolsFor(p);
   if (artifactState.presentSucceeded) return [];
   if (artifactState.imageAttempted || artifactState.presentAttempted) {
     tools = tools.filter(tool => !SHELL_TOOL_NAMES.has(normalizedToolName(tool.function?.name)));
   }
+  if (harness.active && harness.shellBlock) {
+    tools = tools.filter(tool => !HARNESS_SHELL_TOOL_NAMES.has(normalizedToolName(tool.function?.name)));
+  }
   return tools;
 }
-function artifactDeliveryInstructions(p, artifactState = artifactDeliveryState(p)) {
-  const names = new Set(toolsFor(p, artifactState).map(tool => normalizedToolName(tool.function?.name)));
+function artifactDeliveryInstructions(p, artifactState = artifactDeliveryState(p), harness = harnessState(p)) {
+  const names = new Set(toolsFor(p, artifactState, harness).map(tool => normalizedToolName(tool.function?.name)));
   const hasImageTool = names.has("image_generate") || names.has("image_edit");
   return hasImageTool && names.has("present_files") ? ARTIFACT_DELIVERY_INSTRUCTION : "";
 }
@@ -387,8 +583,8 @@ function responsesInputItems(input) {
   }
   return { items, instructions: instructionText };
 }
-function responsesTools(p, artifactState = artifactDeliveryState(p)) {
-  return toolsFor(p, artifactState).map(item => ({
+function responsesTools(p, artifactState = artifactDeliveryState(p), harness = harnessState(p)) {
+  return toolsFor(p, artifactState, harness).map(item => ({
     type: "function",
     name: item.function.name,
     description: item.function.description || "",
@@ -416,12 +612,17 @@ function responsesRequest(input, stream, model) {
   const p = envelope(input); const g = p.generationConfig || p.generation_config || {};
   const converted = responsesInputItems(input);
   const artifactState = artifactDeliveryState(p);
+  const harness = harnessState(input);
   const result = { model: model || normalizedModel(input), input: converted.items, stream: Boolean(stream), store: false };
-  const instructions = [converted.instructions, artifactDeliveryInstructions(p, artifactState)].filter(Boolean).join("\n\n");
+  const instructions = [
+    converted.instructions,
+    artifactDeliveryInstructions(p, artifactState, harness),
+    harnessInstructions(harness),
+  ].filter(Boolean).join("\n\n");
   if (instructions) result.instructions = instructions;
   const effort = responsesReasoningEffort(g);
   if (effort) result.reasoning = { effort };
-  const tools = responsesTools(p, artifactState);
+  const tools = responsesTools(p, artifactState, harness);
   if (tools.length) result.tools = tools;
   const toolChoice = artifactState.presentSucceeded ? "none" : responsesToolChoice(p);
   if (toolChoice) result.tool_choice = toolChoice;
@@ -433,8 +634,13 @@ function responsesTextFromPayload(payload) {
 }
 function openAIRequest(input) {
   const p = envelope(input); const g = p.generationConfig || p.generation_config || {};
-  const result = { model: normalizedModel(input), messages: messagesFor(input), stream: true, stream_options: { include_usage: true }, thinking: { type: "enabled" }, reasoning_effort: "high" };
-  const tools = toolsFor(p); if (tools.length) result.tools = tools;
+  const messages = messagesFor(input);
+  const harness = harnessState(input);
+  const harnessInstruction = harnessInstructions(harness);
+  if (harnessInstruction) messages.push({ role: "system", content: harnessInstruction });
+  const result = { model: normalizedModel(input), messages, stream: true, stream_options: { include_usage: true }, thinking: { type: "enabled" }, reasoning_effort: "high" };
+  const tools = toolsFor(p, artifactDeliveryState(p), harness);
+  if (tools.length) result.tools = tools;
   for (const [from, to] of [["temperature", "temperature"], ["topP", "top_p"], ["maxOutputTokens", "max_tokens"], ["stopSequences", "stop"]]) if (g[from] != null) result[to] = g[from];
   return result;
 }
@@ -477,6 +683,7 @@ async function sseResponses(req, res, input, upstreamModelOverride, userAgent = 
   const model = requestedModel(input);
   const upstreamModel = upstreamModelOverride || normalizedModel(input);
   const artifactState = artifactDeliveryState(envelope(input));
+  const harness = harnessState(input);
   diagnostic("bridge.responses.request", {
     model,
     upstreamModel,
@@ -485,6 +692,12 @@ async function sseResponses(req, res, input, upstreamModelOverride, userAgent = 
   });
   diagnostic("bridge.responses.shape", requestShape(input));
   diagnostic("bridge.responses.artifact", artifactStateSummary(artifactState));
+  diagnostic("bridge.responses.harness", {
+    active: harness.active,
+    prompts: harness.prompts,
+    toolNames: harness.toolNames,
+    shellBlock: harness.shellBlock,
+  });
   const converted = responsesInputItems(input);
   diagnostic("bridge.responses.tools", toolRequestShape(input, converted.items));
   if (!converted.items.length) {
@@ -635,6 +848,7 @@ async function sseResponses(req, res, input, upstreamModelOverride, userAgent = 
       const allowedCompletedCalls = rawCompletedCalls.filter(call => {
         const name = normalizedToolName(call.name);
         if (artifactState.presentSucceeded) return false;
+        if (harness.active && harness.shellBlock && HARNESS_SHELL_TOOL_NAMES.has(name)) return false;
         if (
           SHELL_TOOL_NAMES.has(name)
           && (artifactState.imageAttempted || artifactState.presentAttempted || artifactCallThisTurn)
@@ -642,10 +856,13 @@ async function sseResponses(req, res, input, upstreamModelOverride, userAgent = 
         return true;
       });
       const injectedTimeouts = [];
+      const mappedHarnessCalls = [];
       const completedCalls = allowedCompletedCalls.map(call => {
         const normalizedArgs = normalizeToolArguments(call.name, call.args, fallbackQuestion);
         if (normalizedArgs == null) return null;
-        const timed = applyToolTimeout(call.name, normalizedArgs, input);
+        const mapping = harnessMcpArguments(call.name, normalizedArgs, input, harness);
+        if (mapping.mapped) mappedHarnessCalls.push(mapping.mapped);
+        const timed = applyToolTimeout(call.name, mapping.argsText, input);
         if (timed.injectedKey) injectedTimeouts.push(`${call.name}:${timed.injectedKey}`);
         return { ...call, args: timed.args };
       }).filter(Boolean);
@@ -653,9 +870,11 @@ async function sseResponses(req, res, input, upstreamModelOverride, userAgent = 
         diagnostic("bridge.responses.tool_calls", {
           count: completedCalls.length,
           names: limitedJoin(completedCalls.map(call => call.name)),
+          mcpCalls: limitedJoin(completedCalls.map(call => mcpCallShape(call.name, call.args))),
           ids: limitedJoin(completedCalls.map(call => call.id)),
           argumentLengths: completedCalls.map(call => String(call.args || "").length),
           timeoutKeys: limitedJoin(injectedTimeouts),
+          harnessMapped: limitedJoin(mappedHarnessCalls),
           suppressedCount: rawCompletedCalls.length - completedCalls.length,
           artifactCallThisTurn,
           artifactImageAttempted: artifactState.imageAttempted,
@@ -721,12 +940,20 @@ async function sse(req, res, input) {
   const userAgent = requestUserAgent(req);
   const route = await routeForModel(input, userAgent);
   const provider = route.provider;
+  const harness = harnessState(input);
   diagnostic("bridge.route", {
     provider,
     model: requestedModel(input),
     upstreamModel: normalizedModel(input, route),
     selectionName: selectionName(input),
     userAgent,
+  });
+  diagnostic("bridge.openai.harness", {
+    provider,
+    active: harness.active,
+    prompts: harness.prompts,
+    toolNames: harness.toolNames,
+    shellBlock: harness.shellBlock,
   });
   if (provider === "codexplus") return sseResponses(req, res, input, route.upstreamModel, userAgent);
   const target = provider === "omniroute" ? OMNIROUTE_BASE_URL : OPENAI_BASE_URL;
@@ -790,17 +1017,26 @@ async function sse(req, res, input) {
     if (!res.writableEnded) {
       const fallbackQuestion = emittedText || latestAssistantText(input);
       const injectedTimeouts = [];
+      const mappedHarnessCalls = [];
       const parts = toolCalls.filter(Boolean).map(call => {
+        if (harness.active && harness.shellBlock && HARNESS_SHELL_TOOL_NAMES.has(normalizedToolName(call.name))) {
+          return null;
+        }
         const normalizedArgs = normalizeToolArguments(call.name, call.args, fallbackQuestion);
         if (normalizedArgs == null) return null;
-        const timed = applyToolTimeout(call.name, normalizedArgs, input);
+        const mapping = harnessMcpArguments(call.name, normalizedArgs, input, harness);
+        if (mapping.mapped) mappedHarnessCalls.push(mapping.mapped);
+        const timed = applyToolTimeout(call.name, mapping.argsText, input);
         if (timed.injectedKey) injectedTimeouts.push(`${call.name}:${timed.injectedKey}`);
         return { functionCall: { id: call.id || undefined, name: call.name || undefined, argsJson: timed.args, args: timed.args } };
       }).filter(Boolean);
-      if (injectedTimeouts.length) {
-        diagnostic("bridge.openai.tool_timeouts", {
+      if (parts.length || injectedTimeouts.length) {
+        diagnostic("bridge.openai.tool_calls", {
+          count: parts.length,
           names: limitedJoin(parts.map(part => part.functionCall.name)),
+          mcpCalls: limitedJoin(parts.map(part => mcpCallShape(part.functionCall.name, part.functionCall.args))),
           timeoutKeys: limitedJoin(injectedTimeouts),
+          harnessMapped: limitedJoin(mappedHarnessCalls),
         });
       }
       writeFrame({ content: { role: "model", parts }, partial: false, turnComplete: true, finishReason: finishReason(completionReason || (parts.length ? "tool_calls" : "stop")), usageMetadata: usageMetadata(latestUsage) });
@@ -920,6 +1156,25 @@ function safeKeys(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
   return Object.keys(value).slice(0, 40).join(",");
 }
+function mcpCallShape(name, argsText) {
+  if (!MCP_CALL_TOOL_NAMES.has(normalizedToolName(name))) return "";
+  let args;
+  try {
+    args = JSON.parse(String(argsText || "{}"));
+  } catch (_) {
+    return "invalid-json";
+  }
+  const action = String(args?.action || "").trim().toLowerCase();
+  const target = String(args?.name || args?.tool_name || "").trim();
+  const argumentKeys = safeKeys(args?.arguments);
+  const requestKeys = safeKeys(args?.arguments?.request || args?.request);
+  return [
+    `action=${action || "missing"}`,
+    `name=${target || "missing"}`,
+    argumentKeys ? `argumentKeys=${argumentKeys}` : "",
+    requestKeys ? `requestKeys=${requestKeys}` : "",
+  ].filter(Boolean).join(";");
+}
 function arrayShape(value) {
   if (!Array.isArray(value)) return typeof value;
   const first = value[0];
@@ -945,15 +1200,24 @@ function requestShape(input) {
 function limitedJoin(values, limit = 16) {
   return values.map(value => String(value || "").trim()).filter(Boolean).slice(0, limit).join(",");
 }
+function toolNameDiagnosticFields(names, chunkSize = 8) {
+  const fields = {};
+  for (let index = 0; index < names.length; index += chunkSize) {
+    fields[`toolNames${index / chunkSize + 1}`] = names.slice(index, index + chunkSize).join(",");
+  }
+  return fields;
+}
 function toolRequestShape(input, items) {
   const tools = responsesTools(envelope(input));
   const calls = items.filter(item => item?.type === "function_call");
   const outputs = items.filter(item => item?.type === "function_call_output");
   return {
     toolCount: tools.length,
-    toolNames: limitedJoin(tools.map(tool => tool.name)),
+    toolNames: limitedJoin(tools.map(tool => tool.name), 64),
+    ...toolNameDiagnosticFields(tools.map(tool => tool.name)),
     functionCallCount: calls.length,
     functionCallNames: limitedJoin(calls.map(call => call.name)),
+    functionCallMcp: limitedJoin(calls.map(call => mcpCallShape(call.name, call.arguments))),
     functionCallIds: limitedJoin(calls.map(call => call.call_id)),
     functionOutputCount: outputs.length,
     functionOutputIds: limitedJoin(outputs.map(output => output.call_id)),

@@ -80,7 +80,7 @@ function serviceEnvironment(config) {
     CODEXPLUS_DISCOVERY_ONLY_EXPLICIT: "1",
     ACCIO_PROVIDER_SOURCES: "codexplus",
     ACCIO_APP_VERSION: config.accioVersion || "",
-    ACCIO_BRIDGE_VERSION: "0.1.23",
+    ACCIO_BRIDGE_VERSION: "0.1.40",
     ACCIO_IMAGE_BRIDGE_URL: "http://127.0.0.1:43102",
     // Codex++ owns image generation, so its image gateway is tried first and the Codex CLI
     // bridge on 43102 stays as the fallback. "auto" picks /gw/accio/ when Codex++ registers
@@ -88,6 +88,9 @@ function serviceEnvironment(config) {
     ACCIO_IMAGE_ROUTE: config.imageRoute || "auto",
     ACCIO_IMAGE_CATALOG: config.imageCatalog || "group",
     ACCIO_IMAGE_MODEL: config.imageModel || "auto",
+    ACCIO_HARNESS_PROMPTS: config.harnessPrompts || "auto",
+    ACCIO_HARNESS_TOOL_NAMES: config.harnessToolNames || "auto",
+    ACCIO_HARNESS_SHELL_BLOCK: config.harnessShellBlock || "auto",
     ACCIO_CODEX_PORT: "43102",
     ACCIO_CODEX_IMAGE_ONLY: "true",
     ACCIO_CODEX_MODEL: "gpt-5.6-luna",
@@ -207,6 +210,9 @@ function status() {
           imageRoute: activeConfig.imageRoute || "auto",
           imageCatalog: activeConfig.imageCatalog || "group",
           imageModel: activeConfig.imageModel || "auto",
+          harnessPrompts: activeConfig.harnessPrompts || "auto",
+          harnessToolNames: activeConfig.harnessToolNames || "auto",
+          harnessShellBlock: activeConfig.harnessShellBlock || "auto",
         }
       : null,
   };

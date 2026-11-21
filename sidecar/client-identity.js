@@ -2,7 +2,7 @@
 
 const os = require("node:os");
 
-const BRIDGE_VERSION = "0.1.23";
+const BRIDGE_VERSION = "0.1.40";
 const USER_AGENT_MAX_LENGTH = 512;
 
 function cleanUserAgent(value) {

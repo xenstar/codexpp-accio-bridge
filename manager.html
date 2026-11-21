@@ -222,6 +222,7 @@
         backendError: "Backend error",
         refreshed: "State refreshed.",
         actionCompleted: "Action completed.",
+        mcpCleanup: "Removed an obsolete Accio MCP registration. Start a new Codex chat to clear the old startup warning.",
         opening: "Starting Accio with Codex++ models.",
         started: "Accio is starting with Codex++ routing.",
         restarting: "Restarting Accio through Codex++.",
@@ -265,6 +266,7 @@
         backendError: "后台错误",
         refreshed: "状态已刷新。",
         actionCompleted: "操作已完成。",
+        mcpCleanup: "已移除过期的 Accio MCP 注册。请新建 Codex 对话以清除旧的启动警告。",
         opening: "正在使用 Codex++ 模型启动 Accio。",
         started: "Accio 正在使用 Codex++ 路由启动。",
         restarting: "正在通过 Codex++ 重启 Accio。",
@@ -423,6 +425,15 @@
       }
     }
 
+    async function cleanupLegacyMcp() {
+      try {
+        const result = await api.backend.call("cleanupLegacyMcp");
+        if (result?.changed) say(copy.mcpCleanup);
+      } catch (error) {
+        console.warn("Legacy Accio MCP cleanup failed", error);
+      }
+    }
+
     applyLanguage();
     el("open").onclick = () => run("openAccio", copy.opening);
     el("restart").onclick = () => run("restartAccio", copy.restarting);
@@ -432,7 +443,7 @@
     api.onTheme((theme) => {
       document.documentElement.dataset.theme = theme;
     });
-    refresh(false);
+    cleanupLegacyMcp().finally(() => refresh(false));
     setInterval(() => refresh(false), 5000);
   </script>
 </body>

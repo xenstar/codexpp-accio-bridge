@@ -6,12 +6,15 @@ const codexPlusImage = require(path.join(__dirname, "codexplus-image.js"));
 const { requestUserAgent } = require(path.join(__dirname, "client-identity.js"));
 const { diagnostic, errorDetail } = require(path.join(__dirname, "diagnostics.js"));
 const { decodeContentEncoding } = require(path.join(__dirname, "encoding.js"));
+const accioMcp = require(path.join(__dirname, "accio-mcp.js"));
 const HOST = process.env.RELAY_HOST || "127.0.0.1"; const PORT = Number(process.env.RELAY_PORT || 43100);
-const BRIDGE = process.env.BRIDGE_URL || "http://127.0.0.1:43101"; const IMAGE_BRIDGE = process.env.ACCIO_IMAGE_BRIDGE_URL || ""; const ORIGINAL = process.env.ORIGINAL_GATEWAY_BASE_URL;
+const BRIDGE = process.env.BRIDGE_URL || "http://127.0.0.1:43101"; const IMAGE_BRIDGE = process.env.ACCIO_IMAGE_BRIDGE_URL || ""; const ORIGINAL = process.env.ORIGINAL_GATEWAY_BASE_URL; const LOCAL_GATEWAY = process.env.ACCIO_LOCAL_GATEWAY_BASE_URL || "http://127.0.0.1:4097";
 const SNAPSHOT_PATH = process.env.ACCIO_MODEL_CACHE_SNAPSHOT_PATH;
 const DEBUG = String(process.env.RELAY_DEBUG || "").trim() === "1";
 const configuredTimeout = Number(process.env.RELAY_UPSTREAM_TIMEOUT_MS);
 const UPSTREAM_TIMEOUT_MS = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 120000;
+const configuredSubscriptionTimeout = Number(process.env.RELAY_SUBSCRIPTION_TIMEOUT_MS);
+const SUBSCRIPTION_TIMEOUT_MS = Number.isFinite(configuredSubscriptionTimeout) && configuredSubscriptionTimeout > 0 ? configuredSubscriptionTimeout : 8000;
 const configuredImageTimeout = Number(process.env.RELAY_IMAGE_TIMEOUT_MS);
 const IMAGE_TIMEOUT_MS = Number.isFinite(configuredImageTimeout) && configuredImageTimeout > 0 ? configuredImageTimeout : 600000;
 function reply(res, code, value, headers = {}) { res.writeHead(code, { "content-type": "application/json", ...headers }); res.end(JSON.stringify(value)); }
@@ -62,6 +65,14 @@ function configuredSources() {
   if (!value) return null;
   const parsed = value.split(",").map(source => source.trim().toLowerCase()).filter(Boolean);
   return parsed.length ? parsed : null;
+}
+function codexPlusOnlyMode() {
+  const sources = configuredSources();
+  return sources?.length === 1 && sources[0] === "codexplus";
+}
+function codexPlusQuotaBypassEnabled() {
+  const setting = String(process.env.ACCIO_CODEXPLUS_QUOTA_BYPASS || "1").trim().toLowerCase();
+  return codexPlusOnlyMode() && !["0", "false", "off", "passthrough"].includes(setting);
 }
 function providerSourcesEnabled() {
   return configuredSources() || DEFAULT_AUTO_SOURCES;
@@ -287,9 +298,66 @@ function forwardedHeaders(req) {
 function forwardedResponseHeaders(headers) {
   return Object.fromEntries([...headers].filter(([name]) => !OMITTED_RESPONSE_HEADERS.has(name.toLowerCase())));
 }
-async function proxy(req, res, base, bodyOverride, route = "proxy") {
-  const u = new URL(req.url, base);
+function neutralEntitlement(value) {
+  const entitlement = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return { ...entitlement, total: 0, remaining: 0, used: 0 };
+}
+function neutralSubscriptionPayload(value) {
+  const payload = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const input = payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+    ? payload.data
+    : {};
+  const entitlementInput = input.entitlement && typeof input.entitlement === "object" && !Array.isArray(input.entitlement)
+    ? input.entitlement
+    : {};
+  const safeInput = Object.fromEntries(
+    Object.entries(input).filter(([name]) => !["status", "error", "requestId", "timestamp", "path"].includes(name)),
+  );
+  return {
+    success: true,
+    data: {
+      ...safeInput,
+      type: typeof input.type === "string" && input.type ? input.type : "FREE",
+      total: 0,
+      remaining: 0,
+      used: 0,
+      entitlement: {
+        ...entitlementInput,
+        daily: neutralEntitlement(entitlementInput.daily),
+        monthly: neutralEntitlement(entitlementInput.monthly),
+      },
+    },
+  };
+}
+async function subscription(req, res) {
+  if (!ORIGINAL) return reply(res, 503, { error: { message: "ORIGINAL_GATEWAY_BASE_URL is not configured" } });
+  if (!codexPlusQuotaBypassEnabled()) return proxy(req, res, ORIGINAL, undefined, "subscription");
+
+  const u = new URL(req.url, ORIGINAL);
   const headers = forwardedHeaders(req);
+  headers["user-agent"] = requestUserAgent(req);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SUBSCRIPTION_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(u, { method: "GET", headers, signal: controller.signal });
+    const text = await upstream.text();
+    let payload;
+    try { payload = JSON.parse(text); } catch (_) {}
+    diagnostic("relay.subscription", { mode: "codexplus", status: upstream.status });
+    return reply(res, 200, neutralSubscriptionPayload(payload), { "cache-control": "no-store, max-age=0" });
+  } catch (error) {
+    diagnostic("relay.subscription", {
+      mode: "codexplus-fallback",
+      error: errorDetail(error?.name === "AbortError" ? "Subscription refresh timed out" : error?.message || error),
+    });
+    return reply(res, 200, neutralSubscriptionPayload(null), { "cache-control": "no-store, max-age=0" });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+async function proxy(req, res, base, bodyOverride, route = "proxy", headersOverride = null) {
+  const u = new URL(req.url, base);
+  const headers = headersOverride || forwardedHeaders(req);
   headers["user-agent"] = requestUserAgent(req);
   const summary = bodySummary(bodyOverride, req.headers);
   const target = `${u.host}${u.pathname}`;
@@ -353,10 +421,10 @@ async function handleImage(req, res, rawBody, payload) {
   }
   return proxy(req, res, IMAGE_BRIDGE, rawBody, "image");
 }
-const server = http.createServer(async (req, res) => { if (req.method === "GET" && req.url === "/health") return reply(res, 200, { ok: true, service: "accio-relay" }); if (req.method === "GET" && req.url === "/image/status") return reply(res, 200, imageStatus()); if (req.method === "POST" && req.url === "/agent/prompt/enhance") { const body = await requestBody(req); return proxy(req, res, BRIDGE, body, "enhance"); } if (!req.url.startsWith("/api/")) return reply(res, 404, { error: { message: "Not found" } }); if (req.method === "POST" && req.url === "/api/llm/config/v2") { let input; try { const body = await requestBody(req); input = body ? JSON.parse(body.toString("utf8")) : undefined; } catch (_) {}
+const server = http.createServer(async (req, res) => { if (req.method === "GET" && req.url === "/health") return reply(res, 200, { ok: true, service: "accio-relay" }); if (req.method === "GET" && req.url === "/image/status") return reply(res, 200, imageStatus()); if (req.method === "POST" && req.url === "/agent/prompt/enhance") { const body = await requestBody(req); return proxy(req, res, BRIDGE, body, "enhance"); } const pathname = new URL(req.url, `http://${req.headers.host || "relay.invalid"}`).pathname; if (req.method === "GET" && ["/subscription/current", "/api/subscription/current", "/api/entitlement/currentSubscription"].includes(pathname)) return subscription(req, res); if (!req.url.startsWith("/api/") && !pathname.startsWith("/connectors/")) return reply(res, 404, { error: { message: "Not found" } }); if (req.method === "POST" && req.url === "/api/llm/config/v2") { let input; try { const body = await requestBody(req); input = body ? JSON.parse(body.toString("utf8")) : undefined; } catch (_) {}
   try { const catalog = await catalogFromSnapshot(readSnapshot(input), { userAgent: requestUserAgent(req), force: true }); diagnostic("relay.catalog", { groups: catalog?.data?.length || 0, models: (catalog?.data || []).reduce((sum, group) => sum + (group?.modelList?.length || 0), 0) }); return reply(res, 200, catalog, { "cache-control": "no-store, max-age=0" }); }
   catch (error) { return reply(res, 503, { error: { code: "PROVIDER_CATALOG_UNAVAILABLE", message: safeError(error.message || error) } }); }
-} if (req.method === "POST" && req.url.startsWith("/api/adk/llm/generateContent")) { const body = await requestBody(req); let image = false; let video = false; let payload; try { const decoded = decodeContentEncoding(body || Buffer.alloc(0), req.headers["content-encoding"]); payload = body ? JSON.parse(decoded.toString("utf8")) : undefined; image = isImageGenerationPayload(payload); video = isVideoGenerationPayload(payload); } catch (_) {} if (video) { const request = payload?.request || payload?.body || payload; const model = request?.model || request?.modelName || ""; diagnostic("relay.video", { codexplus: isCodexPlusFamilyModel(model), model }); return streamFrames(res, [videoUnsupportedFrame(model)]); } if (image) return handleImage(req, res, body, payload); return proxy(req, res, BRIDGE, body, "text"); } if (!ORIGINAL) return reply(res, 503, { error: { message: "ORIGINAL_GATEWAY_BASE_URL is not configured" } }); return proxy(req, res, ORIGINAL, undefined, "fallback"); });
+} if (req.method === "POST" && req.url.startsWith("/api/adk/llm/generateContent")) { const body = await requestBody(req); let image = false; let video = false; let payload; try { const decoded = decodeContentEncoding(body || Buffer.alloc(0), req.headers["content-encoding"]); payload = body ? JSON.parse(decoded.toString("utf8")) : undefined; image = isImageGenerationPayload(payload); video = isVideoGenerationPayload(payload); } catch (_) {} if (video) { const request = payload?.request || payload?.body || payload; const model = request?.model || request?.modelName || ""; diagnostic("relay.video", { codexplus: isCodexPlusFamilyModel(model), model }); return streamFrames(res, [videoUnsupportedFrame(model)]); } if (image) return handleImage(req, res, body, payload); return proxy(req, res, BRIDGE, body, "text"); } if (!ORIGINAL) return reply(res, 503, { error: { message: "ORIGINAL_GATEWAY_BASE_URL is not configured" } }); if (pathname.startsWith("/connectors/")) { const body = ["GET", "HEAD"].includes(req.method) ? undefined : await requestBody(req); if (req.method === "POST" && pathname === "/connectors/alibaba/auth") accioMcp.captureConnectorAuthorization(pathname, req.headers); const headers = forwardedHeaders(req); if (!headers.authorization) { const authorization = accioMcp.gatewayAuthorization(); if (authorization) headers.authorization = authorization; } return proxy(req, res, LOCAL_GATEWAY, body, "connector", headers); } if (pathname.startsWith("/api/mcp/")) { if (req.method === "GET" || req.method === "HEAD") return proxy(req, res, ORIGINAL, undefined, "mcp"); const body = (await requestBody(req)) || Buffer.alloc(0); if (pathname === "/api/mcp/proxy") accioMcp.capture(body, req.headers); return proxy(req, res, ORIGINAL, body, "mcp"); } return proxy(req, res, ORIGINAL, undefined, "fallback"); });
 function imageStatus() {
   const options = tryJson(() => codexPlusImage.imageModelOptions()) || [];
   return {
@@ -433,4 +501,9 @@ server.on("upgrade", (req, socket, head) => {
   upstream.once("error", close); upstream.once("close", () => { try { socket.destroy(); } catch (_) {} });
   socket.once("error", close); socket.once("close", () => { try { upstream.destroy(); } catch (_) {} });
 });
-server.listen(PORT, HOST, () => console.log(`relay listening on http://${HOST}:${PORT}`));
+server.listen(PORT, HOST, () => {
+  console.log(`relay listening on http://${HOST}:${PORT}`);
+  if (process.env.ACCIO_MCP_DEVELOPMENT_SERVER === "1") {
+    accioMcp.startMcpServer({ gatewayBase: ORIGINAL, localGatewayBase: LOCAL_GATEWAY });
+  }
+});

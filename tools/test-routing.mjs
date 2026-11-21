@@ -36,6 +36,7 @@ const observedEnhancementUserAgents = [];
 const observedImageRequests = [];
 const observedArtifactRequests = [];
 const observedNativeVideoRequests = [];
+const observedSubscriptionRequests = [];
 let bridgeLogs = "";
 
 async function freePort() {
@@ -164,6 +165,210 @@ const codexPlus = http.createServer(async (req, res) => {
         res.end();
         return;
       }
+      if (inputText.includes("NATIVE_MCP_PASSTHROUGH")) {
+        const argumentsValue = JSON.stringify({
+          action: "mcp",
+          name: "read_conversation",
+          arguments: JSON.stringify({ request: { conversationId: "conversation-test" } }),
+        });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_native_mcp",
+            type: "function_call",
+            call_id: "call_native_mcp",
+            name: "mcp_call",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("NATIVE_HOST_MCP_PASSTHROUGH")) {
+        const argumentsValue = JSON.stringify({
+          action: "mcp",
+          name: "get_task_progress_summary",
+          arguments: { request: { taskId: "task-test" } },
+        });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_native_host_mcp",
+            type: "function_call",
+            call_id: "call_native_host_mcp",
+            name: "accio_host_mcp_call",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("NATIVE_SEND_PASSTHROUGH")) {
+        const argumentsValue = JSON.stringify({
+          conversationId: "conversation-test",
+          message: "Hello from Codex++",
+        });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_native_send",
+            type: "function_call",
+            call_id: "call_native_send",
+            name: "send_msg",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("HARNESS_MCP_ALIAS_STRING")) {
+        const argumentsValue = JSON.stringify({
+          action: "mcp",
+          tool_name: "query_recent_conversation",
+          arguments: JSON.stringify({
+            request: {
+              domain: "icbu",
+              count: 20,
+            },
+          }),
+        });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_harness_mcp_string",
+            type: "function_call",
+            call_id: "call_harness_mcp_string",
+            name: "mcp_call",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("HARNESS_MCP_CANONICAL")) {
+        const argumentsValue = JSON.stringify({
+          action: "mcp",
+          name: "query_recent_conversation_for_aimode",
+          arguments: {
+            request: {
+              domain: "icbu",
+              count: 20,
+            },
+          },
+        });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_harness_mcp_canonical",
+            type: "function_call",
+            call_id: "call_harness_mcp_canonical",
+            name: "mcp_call",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("HARNESS_MCP_MALFORMED")) {
+        const argumentsValue = "{\"action\":\"mcp\",\"name\":\"query_recent_conversation\",";
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_harness_mcp_malformed",
+            type: "function_call",
+            call_id: "call_harness_mcp_malformed",
+            name: "mcp_call",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("HARNESS_MCP_ALIAS")) {
+        const argumentsValue = JSON.stringify({
+          action: "mcp",
+          tool_name: "query_recent_conversation",
+          arguments: {
+            request: {
+              domain: "icbu",
+              count: 20,
+            },
+          },
+        });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_harness_mcp",
+            type: "function_call",
+            call_id: "call_harness_mcp",
+            name: "mcp_call",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("HARNESS_FOLLOWUP_SEARCH")) {
+        const argumentsValue = JSON.stringify({
+          action: "search",
+          keyword: "latest messages",
+        });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_harness_followup",
+            type: "function_call",
+            call_id: "call_harness_followup",
+            name: "mcp_call",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("HARNESS_SEND_DIRECT")) {
+        const argumentsValue = JSON.stringify({
+          conversationId: "conversation-test",
+          message: "Please confirm the sample price.",
+        });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_harness_send",
+            type: "function_call",
+            call_id: "call_harness_send",
+            name: "send_msg",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
+      if (inputText.includes("HARNESS_SHELL_BLOCK")) {
+        const argumentsValue = JSON.stringify({ command: "Get-Date" });
+        res.write(`data: ${JSON.stringify({
+          type: "response.output_item.added",
+          item: {
+            id: "fc_item_harness_shell",
+            type: "function_call",
+            call_id: "call_harness_shell",
+            name: "bash",
+            arguments: argumentsValue,
+          },
+        })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}\n\n`);
+        res.end();
+        return;
+      }
       const timeoutScenario = /TOOL_TIMEOUT_(MISSING|EXPLICIT|NO_SCHEMA)/.exec(inputText)?.[1];
       if (timeoutScenario) {
         const argumentsValue = timeoutScenario === "EXPLICIT"
@@ -228,6 +433,24 @@ const codexPlus = http.createServer(async (req, res) => {
     res.end();
     return;
   }
+  if (req.method === "GET" && ["/subscription/current", "/api/subscription/current", "/api/entitlement/currentSubscription"].includes(req.url)) {
+    observedSubscriptionRequests.push({ userAgent: req.headers["user-agent"] || "" });
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({
+      success: true,
+      data: {
+        type: "FREE",
+        total: 100,
+        remaining: 0,
+        used: 100,
+        entitlement: {
+          daily: { total: 20, remaining: 0, used: 20, nextBillingDate: 123 },
+          monthly: { total: 100, remaining: 0, used: 100, nextBillingDate: 456 },
+        },
+      },
+    }));
+    return;
+  }
   res.writeHead(404);
   res.end();
 });
@@ -262,6 +485,9 @@ const bridge = spawn(process.execPath, [bridgeScript], {
     CODEXPLUS_BASE_URL: `http://127.0.0.1:${codexPlusPort}`,
     CODEXPLUS_DISCOVERY_ONLY_EXPLICIT: "1",
     ACCIO_PROVIDER_SOURCES: "codexplus",
+    ACCIO_HARNESS_PROMPTS: "auto",
+    ACCIO_HARNESS_TOOL_NAMES: "auto",
+    ACCIO_HARNESS_SHELL_BLOCK: "auto",
     OPENAI_API_KEY: "",
     OMNIROUTE_API_KEY: "",
   },
@@ -269,6 +495,64 @@ const bridge = spawn(process.execPath, [bridgeScript], {
 });
 bridge.stdout.on("data", chunk => { bridgeLogs += chunk.toString(); });
 bridge.stderr.on("data", chunk => { bridgeLogs += chunk.toString(); });
+const harnessOffPort = await freePort();
+let harnessOffLogs = "";
+const harnessOffBridge = spawn(process.execPath, [bridgeScript], {
+  env: {
+    ...process.env,
+    BRIDGE_HOST: "127.0.0.1",
+    BRIDGE_PORT: String(harnessOffPort),
+    CODEXPLUS_BASE_URL: `http://127.0.0.1:${codexPlusPort}`,
+    CODEXPLUS_DISCOVERY_ONLY_EXPLICIT: "1",
+    ACCIO_PROVIDER_SOURCES: "codexplus",
+    ACCIO_HARNESS_PROMPTS: "off",
+    ACCIO_HARNESS_TOOL_NAMES: "off",
+    ACCIO_HARNESS_SHELL_BLOCK: "off",
+    OPENAI_API_KEY: "",
+    OMNIROUTE_API_KEY: "",
+  },
+  stdio: ["ignore", "pipe", "pipe"],
+});
+harnessOffBridge.stdout.on("data", chunk => { harnessOffLogs += chunk.toString(); });
+harnessOffBridge.stderr.on("data", chunk => { harnessOffLogs += chunk.toString(); });
+async function startHarnessVariant(settings) {
+  const port = await freePort();
+  let variantLogs = "";
+  const child = spawn(process.execPath, [bridgeScript], {
+    env: {
+      ...process.env,
+      BRIDGE_HOST: "127.0.0.1",
+      BRIDGE_PORT: String(port),
+      CODEXPLUS_BASE_URL: `http://127.0.0.1:${codexPlusPort}`,
+      CODEXPLUS_DISCOVERY_ONLY_EXPLICIT: "1",
+      ACCIO_PROVIDER_SOURCES: "codexplus",
+      ACCIO_HARNESS_PROMPTS: settings.prompts,
+      ACCIO_HARNESS_TOOL_NAMES: settings.toolNames,
+      ACCIO_HARNESS_SHELL_BLOCK: settings.shellBlock,
+      OPENAI_API_KEY: "",
+      OMNIROUTE_API_KEY: "",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  child.stdout.on("data", chunk => { variantLogs += chunk.toString(); });
+  child.stderr.on("data", chunk => { variantLogs += chunk.toString(); });
+  return { port, child, logs: () => variantLogs };
+}
+const promptsOffBridge = await startHarnessVariant({
+  prompts: "off",
+  toolNames: "auto",
+  shellBlock: "auto",
+});
+const toolNamesOffBridge = await startHarnessVariant({
+  prompts: "auto",
+  toolNames: "off",
+  shellBlock: "auto",
+});
+const shellBlockOffBridge = await startHarnessVariant({
+  prompts: "auto",
+  toolNames: "auto",
+  shellBlock: "off",
+});
 const relay = spawn(process.execPath, [relayScript], {
   env: {
     ...process.env,
@@ -286,16 +570,42 @@ const relay = spawn(process.execPath, [relayScript], {
 let relayLogs = "";
 relay.stdout.on("data", chunk => { relayLogs += chunk.toString(); });
 relay.stderr.on("data", chunk => { relayLogs += chunk.toString(); });
+const subscriptionPassthroughPort = await freePort();
+let subscriptionPassthroughLogs = "";
+const subscriptionPassthroughRelay = spawn(process.execPath, [relayScript], {
+  env: {
+    ...process.env,
+    RELAY_HOST: "127.0.0.1",
+    RELAY_PORT: String(subscriptionPassthroughPort),
+    BRIDGE_URL: `http://127.0.0.1:${bridgePort}`,
+    ACCIO_IMAGE_BRIDGE_URL: `http://127.0.0.1:${imageBridgePort}`,
+    ORIGINAL_GATEWAY_BASE_URL: `http://127.0.0.1:${codexPlusPort}`,
+    ACCIO_PROVIDER_SOURCES: "sharesi",
+    CODEXPLUS_BASE_URL: `http://127.0.0.1:${codexPlusPort}`,
+    CODEXPLUS_DISCOVERY_ONLY_EXPLICIT: "1",
+  },
+  stdio: ["ignore", "pipe", "pipe"],
+});
+subscriptionPassthroughRelay.stdout.on("data", chunk => { subscriptionPassthroughLogs += chunk.toString(); });
+subscriptionPassthroughRelay.stderr.on("data", chunk => { subscriptionPassthroughLogs += chunk.toString(); });
 
-async function waitForHealth() {
+async function waitForBridgeHealth(port, logs) {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     try {
-      const response = await fetch(`http://127.0.0.1:${bridgePort}/health`);
+      const response = await fetch(`http://127.0.0.1:${port}/health`);
       if (response.ok) return;
     } catch {}
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  throw new Error(`bridge did not become healthy: ${bridgeLogs}`);
+  throw new Error(`bridge did not become healthy: ${logs()}`);
+}
+
+async function waitForHealth() {
+  await waitForBridgeHealth(bridgePort, () => bridgeLogs);
+  await waitForBridgeHealth(harnessOffPort, () => harnessOffLogs);
+  await waitForBridgeHealth(promptsOffBridge.port, promptsOffBridge.logs);
+  await waitForBridgeHealth(toolNamesOffBridge.port, toolNamesOffBridge.logs);
+  await waitForBridgeHealth(shellBlockOffBridge.port, shellBlockOffBridge.logs);
 }
 
 async function waitForRelayHealth() {
@@ -307,6 +617,26 @@ async function waitForRelayHealth() {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   throw new Error(`relay did not become healthy: ${relayLogs}`);
+}
+
+async function waitForSubscriptionPassthroughHealth() {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${subscriptionPassthroughPort}/health`);
+      if (response.ok) return;
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw new Error(`subscription passthrough relay did not become healthy: ${subscriptionPassthroughLogs}`);
+}
+
+async function sendSubscriptionCase(port, pathname = "/subscription/current") {
+  const response = await fetch(`http://127.0.0.1:${port}${pathname}`, {
+    headers: { "user-agent": accioUserAgent },
+  });
+  const responseText = await response.text();
+  assert.equal(response.status, 200, responseText);
+  return JSON.parse(responseText);
 }
 
 async function sendCase(model, selectionName, expectedModel, options = {}) {
@@ -414,6 +744,226 @@ async function sendToolCase() {
   assert.equal(functionCalls[0].name, "echo");
   assert.equal(functionCalls[0].id, "call_tool_echo");
   assert.equal(functionCalls[0].argsJson, "{\"value\":\"ok\"}");
+}
+
+async function sendNativeToolPassthroughCase(scenario, toolName, expectedArguments) {
+  const declarations = [
+    {
+      name: "bash",
+      description: "Run a shell command in the Accio host.",
+      parameters: {
+        type: "object",
+        required: ["command"],
+        properties: { command: { type: "string" } },
+      },
+    },
+    {
+      name: "mcp_call",
+      description: "Call a native Accio tool.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string" },
+          name: { type: "string" },
+          arguments: { type: "string" },
+        },
+      },
+    },
+    {
+      name: "accio_host_mcp_call",
+      description: "Call a hosted Accio tool.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string" },
+          name: { type: "string" },
+          arguments: { type: "object" },
+        },
+      },
+    },
+    {
+      name: "send_msg",
+      description: "Send a message through the host application.",
+      parameters: {
+        type: "object",
+        required: ["conversationId", "message"],
+        properties: {
+          conversationId: { type: "string" },
+          message: { type: "string" },
+        },
+      },
+    },
+  ];
+  const response = await fetch(`http://127.0.0.1:${bridgePort}/api/adk/llm/generateContent`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "user-agent": accioUserAgent },
+    body: JSON.stringify({
+      request: {
+        model: "codexplus/gpt-5.6-luna",
+        contents: [{
+          role: "user",
+          parts: [{ text: `Use the host-provided tool. ${scenario}` }],
+        }],
+        tools: [{ functionDeclarations: declarations }],
+      },
+    }),
+  });
+  const responseText = await response.text();
+  assert.equal(response.status, 200, responseText);
+  const request = observedToolRequests.at(-1);
+  assert.deepEqual(request.tools, declarations.map(tool => ({
+    type: "function",
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  })));
+  assert.doesNotMatch(String(request.instructions || ""), /supplier routing|phoenix-im|accio-mcp-cli/i);
+  const frames = responseText.split(/\r?\n\r?\n/)
+    .map(frame => frame.split(/\r?\n/).filter(line => line.startsWith("data:")).map(line => line.slice(5).trim()).join("\n"))
+    .filter(data => data && data !== "[DONE]")
+    .map(data => JSON.parse(data));
+  const calls = frames.flatMap(frame => frame.content?.parts || []).map(part => part.functionCall).filter(Boolean);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].name, toolName);
+  assert.deepEqual(JSON.parse(calls[0].argsJson), expectedArguments);
+}
+
+const harnessDeclarations = [
+  {
+    name: "bash",
+    description: "Run a shell command in the Accio host.",
+    parameters: {
+      type: "object",
+      required: ["command"],
+      properties: { command: { type: "string" } },
+    },
+  },
+  {
+    name: "process",
+    description: "Manage a host process.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "mcp_call",
+    description: "Call a native Accio MCP tool.",
+    parameters: {
+      type: "object",
+      properties: {
+        action: { type: "string" },
+        name: { type: "string" },
+        tool_name: { type: "string" },
+        arguments: { type: "object" },
+      },
+    },
+  },
+  {
+    name: "query_recent_conversation",
+    description: "Resolve a supplier conversation.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "query_conversation_msg_for_aimode",
+    description: "Read supplier messages.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "send_msg",
+    description: "Send a supplier message.",
+    parameters: {
+      type: "object",
+      required: ["conversationId", "message"],
+      properties: {
+        conversationId: { type: "string" },
+        message: { type: "string" },
+      },
+    },
+  },
+];
+
+function functionCallsFromResponse(responseText) {
+  const frames = responseText.split(/\r?\n\r?\n/)
+    .map(frame => frame.split(/\r?\n/).filter(line => line.startsWith("data:")).map(line => line.slice(5).trim()).join("\n"))
+    .filter(data => data && data !== "[DONE]")
+    .map(data => JSON.parse(data));
+  return frames.flatMap(frame => frame.content?.parts || []).map(part => part.functionCall).filter(Boolean);
+}
+
+async function sendHarnessCase(port, scenario) {
+  const response = await fetch(`http://127.0.0.1:${port}/api/adk/llm/generateContent`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "user-agent": accioUserAgent },
+    body: JSON.stringify({
+      request: {
+        model: "codexplus/gpt-5.6-luna",
+        contents: [{
+          role: "user",
+          parts: [{ text: `Open the 1688 supplier chat and handle this conversation. ${scenario}` }],
+        }],
+        tools: [{ functionDeclarations: harnessDeclarations }],
+      },
+    }),
+  });
+  const responseText = await response.text();
+  assert.equal(response.status, 200, responseText);
+  return {
+    request: observedToolRequests.at(-1),
+    calls: functionCallsFromResponse(responseText),
+  };
+}
+
+async function sendHarnessFollowupCase(port) {
+  const response = await fetch(`http://127.0.0.1:${port}/api/adk/llm/generateContent`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "user-agent": accioUserAgent },
+    body: JSON.stringify({
+      request: {
+        model: "codexplus/gpt-5.6-luna",
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: "Open the 1688 supplier chat and handle this conversation." }],
+          },
+          {
+            role: "model",
+            parts: [{
+              functionCall: {
+                id: "call_previous_supplier",
+                name: "mcp_call",
+                argsJson: JSON.stringify({
+                  action: "mcp",
+                  name: "query_recent_conversation",
+                  arguments: { request: { domain: "icbu" } },
+                }),
+              },
+            }],
+          },
+          {
+            role: "function",
+            parts: [{
+              functionResponse: {
+                id: "call_previous_supplier",
+                name: "query_recent_conversation",
+                responseJson: JSON.stringify({
+                  data: { conversationId: "123_456_789" },
+                }),
+              },
+            }],
+          },
+          {
+            role: "user",
+            parts: [{ text: "continue HARNESS_FOLLOWUP_SEARCH" }],
+          },
+        ],
+        tools: [{ functionDeclarations: harnessDeclarations }],
+      },
+    }),
+  });
+  const responseText = await response.text();
+  assert.equal(response.status, 200, responseText);
+  return {
+    request: observedToolRequests.at(-1),
+    calls: functionCallsFromResponse(responseText),
+  };
 }
 
 async function sendAskUserCase(scenario) {
@@ -893,6 +1443,37 @@ try {
   assert.equal(requestUserAgent({ headers: {} }), generatedUserAgent);
   await waitForHealth();
   await waitForRelayHealth();
+  await waitForSubscriptionPassthroughHealth();
+  const subscriptionEndpoints = [
+    "/subscription/current",
+    "/api/subscription/current",
+    "/api/entitlement/currentSubscription",
+  ];
+  for (const endpoint of subscriptionEndpoints) {
+    const neutralSubscription = await sendSubscriptionCase(relayPort, endpoint);
+    assert.equal(neutralSubscription.success, true, endpoint);
+    assert.equal(neutralSubscription.status, undefined, endpoint);
+    assert.equal(neutralSubscription.error, undefined, endpoint);
+    assert.equal(neutralSubscription.data.total, 0, endpoint);
+    assert.equal(neutralSubscription.data.remaining, 0, endpoint);
+    assert.equal(neutralSubscription.data.used, 0, endpoint);
+    assert.equal(neutralSubscription.data.entitlement.daily.total, 0, endpoint);
+    assert.equal(neutralSubscription.data.entitlement.daily.remaining, 0, endpoint);
+    assert.equal(neutralSubscription.data.entitlement.daily.used, 0, endpoint);
+    assert.equal(neutralSubscription.data.entitlement.monthly.total, 0, endpoint);
+    assert.equal(neutralSubscription.data.entitlement.monthly.remaining, 0, endpoint);
+    assert.equal(neutralSubscription.data.entitlement.monthly.used, 0, endpoint);
+    assert.equal(neutralSubscription.data.type, "FREE", endpoint);
+  }
+  const passthroughSubscription = await sendSubscriptionCase(
+    subscriptionPassthroughPort,
+    "/api/entitlement/currentSubscription",
+  );
+  assert.equal(passthroughSubscription.data.total, 100);
+  assert.equal(passthroughSubscription.data.remaining, 0);
+  assert.equal(passthroughSubscription.data.entitlement.daily.remaining, 0);
+  assert.equal(observedSubscriptionRequests.length, 4);
+  assert.ok(observedSubscriptionRequests.every(item => item.userAgent === accioUserAgent));
   await sendRelayCatalog();
   assert.equal(observedDiscoveryUserAgents[0], relayCatalogUserAgent);
   models.push("gpt-5.6-fresh-model");
@@ -911,7 +1492,146 @@ try {
   await sendCase("codexplus/gpt-5.6-luna", "opencode-go/deepseek-v4.1-flash", "gpt-5.6-luna");
   await sendCase("1Helix-siFj8Dhud0Uh", "gpt-5.6-luna", "gpt-5.6-luna", { gzip: true, messageField: "contents" });
   await sendToolCase();
+  assert.doesNotMatch(String(observedToolRequests.at(-1).instructions || ""), /supplier routing|phoenix-im|accio-mcp-cli/i);
   assert.ok(!String(observedToolRequests.at(-1).instructions || "").includes("Accio artifact delivery"));
+  await sendNativeToolPassthroughCase("NATIVE_MCP_PASSTHROUGH", "mcp_call", {
+    action: "mcp",
+    name: "read_conversation",
+    arguments: JSON.stringify({ request: { conversationId: "conversation-test" } }),
+  });
+  await sendNativeToolPassthroughCase("NATIVE_HOST_MCP_PASSTHROUGH", "accio_host_mcp_call", {
+    action: "mcp",
+    name: "get_task_progress_summary",
+    arguments: { request: { taskId: "task-test" } },
+  });
+  await sendNativeToolPassthroughCase("NATIVE_SEND_PASSTHROUGH", "send_msg", {
+    conversationId: "conversation-test",
+    message: "Hello from Codex++",
+  });
+  const harnessAlias = await sendHarnessCase(bridgePort, "HARNESS_MCP_ALIAS");
+  assert.match(harnessAlias.request.instructions, /Accio native harness routing:/);
+  assert.match(harnessAlias.request.instructions, /selected Codex\+\+ provider/);
+  assert.ok(!harnessAlias.request.tools.some(tool => ["bash", "process"].includes(tool.name)));
+  assert.equal(harnessAlias.calls.length, 1);
+  assert.equal(harnessAlias.calls[0].name, "mcp_call");
+  assert.deepEqual(JSON.parse(harnessAlias.calls[0].argsJson), {
+    action: "mcp",
+    name: "query_recent_conversation_for_aimode",
+    arguments: {
+      request: {
+        domain: "icbu",
+      },
+    },
+  });
+  const harnessStringAlias = await sendHarnessCase(bridgePort, "HARNESS_MCP_ALIAS_STRING");
+  const harnessStringArgs = JSON.parse(harnessStringAlias.calls[0].argsJson);
+  assert.equal(harnessStringAlias.calls[0].name, "mcp_call");
+  assert.equal(harnessStringArgs.name, "query_recent_conversation_for_aimode");
+  assert.equal(typeof harnessStringArgs.arguments, "string");
+  assert.deepEqual(JSON.parse(harnessStringArgs.arguments), {
+    request: {
+      domain: "icbu",
+    },
+  });
+  const harnessCanonical = await sendHarnessCase(bridgePort, "HARNESS_MCP_CANONICAL");
+  assert.match(String(harnessCanonical.request.instructions || ""), /Accio native harness routing:/);
+  assert.equal(harnessCanonical.calls.length, 1);
+  assert.deepEqual(JSON.parse(harnessCanonical.calls[0].argsJson), {
+    action: "mcp",
+    name: "query_recent_conversation_for_aimode",
+    arguments: {
+      request: {
+        domain: "icbu",
+        count: 20,
+      },
+    },
+  });
+  const harnessMalformed = await sendHarnessCase(bridgePort, "HARNESS_MCP_MALFORMED");
+  assert.match(String(harnessMalformed.request.instructions || ""), /Accio native harness routing:/);
+  assert.equal(harnessMalformed.calls.length, 1);
+  assert.equal(
+    harnessMalformed.calls[0].argsJson,
+    "{\"action\":\"mcp\",\"name\":\"query_recent_conversation\",",
+    "malformed MCP arguments must pass through without canonical-name rewriting",
+  );
+  const harnessFollowup = await sendHarnessFollowupCase(bridgePort);
+  assert.match(String(harnessFollowup.request.instructions || ""), /Accio native harness routing:/);
+  assert.ok(!harnessFollowup.request.tools.some(tool => ["bash", "process"].includes(tool.name)));
+  assert.equal(harnessFollowup.calls.length, 1);
+  const harnessFollowupArgs = JSON.parse(harnessFollowup.calls[0].argsJson);
+  assert.equal(harnessFollowupArgs.name, "query_conversation_msg_for_aimode");
+  assert.equal(harnessFollowupArgs.arguments.request.conversationId, "123_456_789");
+  assert.equal(harnessFollowupArgs.arguments.request.domain, "icbu");
+  assert.equal(harnessFollowupArgs.arguments.request.count, 50);
+  assert.equal(harnessFollowupArgs.arguments.request.forward, false);
+  const harnessSend = await sendHarnessCase(bridgePort, "HARNESS_SEND_DIRECT");
+  assert.equal(harnessSend.calls.length, 1);
+  assert.equal(harnessSend.calls[0].name, "send_msg");
+  assert.deepEqual(JSON.parse(harnessSend.calls[0].argsJson), {
+    conversationId: "conversation-test",
+    message: "Please confirm the sample price.",
+  });
+  const harnessShellBlock = await sendHarnessCase(bridgePort, "HARNESS_SHELL_BLOCK");
+  assert.equal(harnessShellBlock.calls.length, 0, "supplier harness turns must suppress bash/process calls");
+  const harnessOffAlias = await sendHarnessCase(harnessOffPort, "HARNESS_MCP_ALIAS");
+  assert.doesNotMatch(String(harnessOffAlias.request.instructions || ""), /Accio native harness routing:/);
+  assert.equal(harnessOffAlias.calls.length, 1);
+  assert.deepEqual(JSON.parse(harnessOffAlias.calls[0].argsJson), {
+    action: "mcp",
+    tool_name: "query_recent_conversation",
+    arguments: {
+      request: {
+        domain: "icbu",
+        count: 20,
+      },
+    },
+  });
+  const harnessOffShell = await sendHarnessCase(harnessOffPort, "HARNESS_SHELL_BLOCK");
+  assert.doesNotMatch(String(harnessOffShell.request.instructions || ""), /Accio native harness routing:/);
+  assert.ok(harnessOffShell.request.tools.some(tool => tool.name === "bash"));
+  assert.equal(harnessOffShell.calls.length, 1);
+  assert.equal(harnessOffShell.calls[0].name, "bash");
+  const promptsOffAlias = await sendHarnessCase(promptsOffBridge.port, "HARNESS_MCP_ALIAS");
+  assert.doesNotMatch(String(promptsOffAlias.request.instructions || ""), /Accio native harness routing:/);
+  assert.ok(!promptsOffAlias.request.tools.some(tool => ["bash", "process"].includes(tool.name)));
+  assert.deepEqual(JSON.parse(promptsOffAlias.calls[0].argsJson), {
+    action: "mcp",
+    name: "query_recent_conversation_for_aimode",
+    arguments: {
+      request: {
+        domain: "icbu",
+      },
+    },
+  });
+  const toolNamesOffAlias = await sendHarnessCase(toolNamesOffBridge.port, "HARNESS_MCP_ALIAS");
+  assert.match(String(toolNamesOffAlias.request.instructions || ""), /Accio native harness routing:/);
+  assert.ok(!toolNamesOffAlias.request.tools.some(tool => ["bash", "process"].includes(tool.name)));
+  assert.deepEqual(JSON.parse(toolNamesOffAlias.calls[0].argsJson), {
+    action: "mcp",
+    tool_name: "query_recent_conversation",
+    arguments: {
+      request: {
+        domain: "icbu",
+        count: 20,
+      },
+    },
+  });
+  const shellBlockOffAlias = await sendHarnessCase(shellBlockOffBridge.port, "HARNESS_MCP_ALIAS");
+  assert.match(String(shellBlockOffAlias.request.instructions || ""), /Accio native harness routing:/);
+  assert.ok(shellBlockOffAlias.request.tools.some(tool => tool.name === "bash"));
+  assert.deepEqual(JSON.parse(shellBlockOffAlias.calls[0].argsJson), {
+    action: "mcp",
+    name: "query_recent_conversation_for_aimode",
+    arguments: {
+      request: {
+        domain: "icbu",
+      },
+    },
+  });
+  const shellBlockOffShell = await sendHarnessCase(shellBlockOffBridge.port, "HARNESS_SHELL_BLOCK");
+  assert.ok(shellBlockOffShell.request.tools.some(tool => tool.name === "bash"));
+  assert.equal(shellBlockOffShell.calls.length, 1);
+  assert.equal(shellBlockOffShell.calls[0].name, "bash");
   const emptyAskUser = await sendAskUserCase("EMPTY");
   assert.equal(emptyAskUser.length, 1);
   assert.deepEqual(JSON.parse(emptyAskUser[0].argsJson), {
@@ -1002,7 +1722,12 @@ try {
   console.log("routing tests passed");
 } finally {
   bridge.kill();
+  harnessOffBridge.kill();
+  promptsOffBridge.child.kill();
+  toolNamesOffBridge.child.kill();
+  shellBlockOffBridge.child.kill();
   relay.kill();
+  subscriptionPassthroughRelay.kill();
   await new Promise(resolve => imageBridge.close(resolve));
   await new Promise(resolve => codexPlus.close(resolve));
 }

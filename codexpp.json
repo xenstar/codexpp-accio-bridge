@@ -1,7 +1,7 @@
 {
   "id": "accio-bridge",
   "name": "Accio Bridge",
-  "version": "0.1.23",
+  "version": "0.1.40",
   "author": "xenstar",
   "homepage": "https://github.com/xenstar",
   "description": "Accio Bridge / Accio 桥接: use Codex++ models in stock Accio Work for chat, agents and image generation while keeping your account, history, skills and UI.",
@@ -23,22 +23,15 @@
     "桥接",
     "生图"
   ],
-  "engines": {
-    "codexpp": 1
-  },
+  "engines": { "codexpp": 1 },
   "backend": {
     "script": "backend/main.mjs",
-    "provides": [
-      "accio-bridge"
-    ]
+    "provides": ["accio-bridge"]
   },
   "agentAccess": [
     {
       "id": "accio",
-      "name": {
-        "en": "Accio",
-        "zh": "Accio"
-      },
+      "name": { "en": "Accio", "zh": "Accio" },
       "wire": "chat",
       "hint": {
         "en": "Start Accio from Codex++ so its existing account and features use Codex++ models.",
@@ -81,34 +74,10 @@
         "zh": "auto 优先走 Codex++ 生图网关，失败时回退到 Codex 订阅桥接；codexplus 只走 Codex++ 网关。"
       },
       "options": [
-        {
-          "value": "auto",
-          "label": {
-            "en": "Codex++ first, then Codex",
-            "zh": "优先 Codex++，回退 Codex"
-          }
-        },
-        {
-          "value": "codexplus",
-          "label": {
-            "en": "Codex++ image gateway only",
-            "zh": "仅用 Codex++ 生图网关"
-          }
-        },
-        {
-          "value": "codex-cli",
-          "label": {
-            "en": "Codex subscription bridge only",
-            "zh": "仅用 Codex 订阅桥接"
-          }
-        },
-        {
-          "value": "off",
-          "label": {
-            "en": "Image generation disabled",
-            "zh": "关闭生图"
-          }
-        }
+        { "value": "auto", "label": { "en": "Codex++ first, then Codex", "zh": "优先 Codex++，回退 Codex" } },
+        { "value": "codexplus", "label": { "en": "Codex++ image gateway only", "zh": "仅用 Codex++ 生图网关" } },
+        { "value": "codex-cli", "label": { "en": "Codex subscription bridge only", "zh": "仅用 Codex 订阅桥接" } },
+        { "value": "off", "label": { "en": "Image generation disabled", "zh": "关闭生图" } }
       ],
       "default": "auto"
     },
@@ -123,27 +92,9 @@
         "zh": "group 会单独显示「Codex++ 生图」分组，可选择 GPT Image 或 Qwen/Wan 生图模型；hidden 保留可路由但不显示在选择列表。"
       },
       "options": [
-        {
-          "value": "group",
-          "label": {
-            "en": "Separate image section",
-            "zh": "独立生图分组"
-          }
-        },
-        {
-          "value": "hidden",
-          "label": {
-            "en": "Routable but hidden from picker",
-            "zh": "可路由但不在列表显示"
-          }
-        },
-        {
-          "value": "off",
-          "label": {
-            "en": "Do not publish image models",
-            "zh": "不发布生图模型"
-          }
-        }
+        { "value": "group", "label": { "en": "Separate image section", "zh": "独立生图分组" } },
+        { "value": "hidden", "label": { "en": "Routable but hidden from picker", "zh": "可路由但不在列表显示" } },
+        { "value": "off", "label": { "en": "Do not publish image models", "zh": "不发布生图模型" } }
       ],
       "default": "group"
     },
@@ -157,6 +108,54 @@
         "en": "Used when Accio asks for an image without a model of its own, for example qwentokenplan/wan2.7-image-pro. auto lets Codex++ choose.",
         "zh": "当 Accio 发起生图但未指定模型时使用，例如 qwentokenplan/wan2.7-image-pro；auto 表示交给 Codex++ 自行选择。"
       },
+      "default": "auto"
+    },
+    "harnessPrompts": {
+      "type": "select",
+      "title": {
+        "en": "Accio harness guidance",
+        "zh": "Accio Harness 指引"
+      },
+      "description": {
+        "en": "auto adds routing guidance only to supplier or inquiry turns that expose native Accio tools. off disables the guidance; ordinary chat and all tool transport remain unchanged.",
+        "zh": "auto 仅为提供原生 Accio 工具的供应商或询盘会话添加路由指引；off 关闭该指引。普通聊天和其余工具传输保持不变。"
+      },
+      "options": [
+        { "value": "auto", "label": { "en": "On for the Accio harness", "zh": "仅 Accio Harness 生效" } },
+        { "value": "off", "label": { "en": "Off", "zh": "关闭" } }
+      ],
+      "default": "auto"
+    },
+    "harnessToolNames": {
+      "type": "select",
+      "title": {
+        "en": "Harness tool-name compatibility",
+        "zh": "Harness 工具名兼容"
+      },
+      "description": {
+        "en": "auto normalizes only supplier-related Accio MCP transport calls. Native tool names, send_msg, and ordinary tool calls stay unchanged. off disables normalization.",
+        "zh": "auto 仅规范化供应商相关的 Accio MCP 传输调用；原生工具名、send_msg 和普通工具调用保持不变。off 关闭规范化。"
+      },
+      "options": [
+        { "value": "auto", "label": { "en": "Normalize harness MCP calls", "zh": "规范化 Harness MCP 调用" } },
+        { "value": "off", "label": { "en": "Off", "zh": "关闭" } }
+      ],
+      "default": "auto"
+    },
+    "harnessShellBlock": {
+      "type": "select",
+      "title": {
+        "en": "Harness shell-route block",
+        "zh": "Harness Shell 路由拦截"
+      },
+      "description": {
+        "en": "auto removes bash and process only from supplier or inquiry harness turns that expose native Accio tools. off leaves every declared tool available.",
+        "zh": "auto 仅在提供原生 Accio 工具的供应商或询盘会话中移除 bash 和 process；off 保留全部工具。"
+      },
+      "options": [
+        { "value": "auto", "label": { "en": "Block shell on harness turns", "zh": "Harness 会话拦截 Shell" } },
+        { "value": "off", "label": { "en": "Off", "zh": "关闭" } }
+      ],
       "default": "auto"
     }
   },

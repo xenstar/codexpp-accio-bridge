@@ -22,7 +22,7 @@ async function run(model) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "user-agent": "Accio/0.39.0.0 (Windows 10.0.26300; x64) AccioBridge/0.1.23",
+        "user-agent": "Accio/0.39.0.0 (Windows 10.0.26300; x64) AccioBridge/0.1.40",
       },
       body: JSON.stringify(payload(model)),
       signal: AbortSignal.timeout(600000),
