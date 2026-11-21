@@ -7,8 +7,8 @@
 Keep your Accio account, history, skills, connectors, and interface. Accio Bridge
 changes the model route for sessions you launch from Codex++.
 
-[Install](#install) · [Features](#features) · [Routing](#how-routing-works) ·
-[Development](#development) · [中文](README.zh-CN.md)
+[Install](#-install) · [Features](#-features) · [Routing](#-how-routing-works) ·
+[Development](#-development) · [中文](README.zh-CN.md)
 
 [![Latest release][release-shield]][release-link]
 [![License][license-shield]][license-link]
@@ -22,20 +22,29 @@ changes the model route for sessions you launch from Codex++.
 > the Accio session and server-side quota. The bridge does not reroute those
 > server APIs through Codex++.
 
-## Features
+## ✨ Features
 
-| Capability | What Accio Bridge does |
-| --- | --- |
-| **Codex++ models in stock Accio** | Adds Codex++ text, agent, and image models to the normal Accio model picker. Your existing login, history, workspace, skills, and UI stay intact. |
-| **Client-side routing** | Sends model traffic through the Codex++ provider selected in Codex++, instead of using Accio's model quota. |
-| **Native Accio tools** | Passes ordinary Accio tools through unchanged, so Accio remains responsible for execution and authorization. |
-| **Image generation** | Routes Codex++ image models and keeps Accio's generated-file delivery flow. |
-| **Accio harness compatibility** | Optionally adds supplier and inquiry routing guidance, normalizes legacy supplier MCP transport names, and hides shell routes on active harness turns. |
-| **No background services** | The extension stays inert while Accio is closed and binds its local gateway only after **Open routed Accio** is selected. |
+- [x] 💬 **Codex++ models in stock Accio**
+  Adds Codex++ text, agent, and image models to the normal Accio model picker
+  while preserving your account, history, workspace, skills, and UI.
+- [x] 🔀 **Client-side model routing**
+  Sends model traffic through the Codex++ provider you selected instead of
+  using Accio's model quota.
+- [x] 🧰 **Native Accio tools**
+  Passes ordinary Accio tools through unchanged, so Accio remains responsible
+  for execution and authorization.
+- [x] 🎨 **Image generation**
+  Routes Codex++ image models and preserves Accio's generated-file workflow.
+- [x] 🧩 **Accio harness compatibility**
+  Adds optional supplier and inquiry guidance, normalizes legacy supplier MCP
+  transport names, and hides shell routes on active harness turns.
+- [x] 🌙 **No background services**
+  Stays inert while Accio is closed and starts its local gateway only after
+  **Open routed Accio** is selected.
+- [ ] 🎬 **Video generation**
+  Not included in this release.
 
-Video generation is not included in this release.
-
-## How routing works
+## 🚀 How routing works
 
 | Work | Executed through | Billing and ownership |
 | --- | --- | --- |
@@ -48,7 +57,7 @@ Video generation is not included in this release.
 This boundary is intentional. A Codex++ model can choose an Accio tool, but
 Accio still decides whether and how that tool runs.
 
-### Accio harness
+### 🧩 Accio harness
 
 Three optional settings apply only to supplier or inquiry turns that expose
 native Accio tools:
@@ -62,16 +71,16 @@ native Accio tools:
 The settings default to **On for the Accio harness** and can be disabled
 individually. Changes apply after the next routed Accio session starts.
 
-## Install
+## 📦 Install
 
-### Codex++ Community
+### 🛍️ Codex++ Community
 
 1. Open **Codex++ → Everything is an extension → Community**.
 2. Search for **Accio**, **Accio Bridge**, or **Accio 桥接**.
 3. Install and enable **Accio Bridge**.
 4. Open Accio Bridge settings and click **Open routed Accio**.
 
-### Manual installation
+### 📁 Manual installation
 
 Download the latest release ZIP, extract its `accio-bridge` folder into:
 
@@ -79,7 +88,7 @@ Download the latest release ZIP, extract its `accio-bridge` folder into:
 %APPDATA%\Codex++\user_scripts\
 ```
 
-## Quick start
+## ⚡ Quick start
 
 1. Keep using your normal Accio login and workspace.
 2. In Accio, select a model from the **Codex++** group.
@@ -93,7 +102,7 @@ launched by Codex++ receives a clean zero-balance FREE subscription response so
 Accio does not show a stale exhausted-credit banner or disable the composer.
 Starting Accio normally keeps the native Accio quota behavior.
 
-## Compatibility and safety
+## 🔒 Compatibility and safety
 
 - Windows 10 or Windows 11.
 - Codex++ `2.6.10` or newer.
@@ -106,7 +115,7 @@ Starting Accio normally keeps the native Accio quota behavior.
   `[mcp_servers.accio-bridge-accio-tools]` in Codex's `config.toml`, open the
   bridge manager once. It backs up and removes only that stale `43103` entry.
 
-## Development
+## 🛠️ Development
 
 ```bash
 git clone https://github.com/xenstar/codexpp-accio-bridge.git
@@ -127,7 +136,7 @@ The plugin manifest is [`codexpp.json`](./codexpp.json). Release versions must
 match the manifest, package filename, extracted stage, Git tag, and release
 asset.
 
-## Links
+## 🔗 Links
 
 - [Latest release][release-link]
 - [Report an issue][issues-link]
@@ -135,7 +144,7 @@ asset.
 - [Codex++](https://github.com/BigPizzaV3/CodexPlusPlus)
 - [Chinese guide](README.zh-CN.md)
 
-## License
+## 📝 License
 
 MIT © 2026 [xenstar](https://github.com/xenstar)
 
@@ -143,7 +152,7 @@ MIT © 2026 [xenstar](https://github.com/xenstar)
 [release-shield]: https://img.shields.io/github/v/release/xenstar/codexpp-accio-bridge?label=release&color=369eff&labelColor=black&style=flat-square
 [license-link]: https://github.com/xenstar/codexpp-accio-bridge/blob/main/LICENSE
 [license-shield]: https://img.shields.io/github/license/xenstar/codexpp-accio-bridge?label=license&color=white&labelColor=black&style=flat-square
-[compatibility]: #compatibility-and-safety
+[compatibility]: #-compatibility-and-safety
 [platform-shield]: https://img.shields.io/badge/platform-Windows-0078D4?labelColor=black&style=flat-square
 [issues-link]: https://github.com/xenstar/codexpp-accio-bridge/issues
 [issues-shield]: https://img.shields.io/github/issues/xenstar/codexpp-accio-bridge?label=issues&color=ff80eb&labelColor=black&style=flat-square
